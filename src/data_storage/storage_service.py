@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from .database import DatabaseManager
 from datetime import datetime
 from .analytics_queries import AnalyticsQueries
+from .predictive_analytics import PredictiveAnalytics
 
 class DataStorageService:
     def __init__(self):
@@ -191,3 +192,7 @@ class DataStorageService:
             self.session.rollback()
             print(f"Error saving analytics summary: {e}")
             raise e
+        
+    def get_predictive_analytics(self):
+     """Get predictive analytics object for forecasting and recommendations"""
+     return PredictiveAnalytics(self.db_manager)
