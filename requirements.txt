@@ -6,3 +6,5 @@ psycopg2-binary>=2.9.0
 python-dotenv>=1.0.0
 pytest>=8.0.0
 requests>=2.30.0
+scikit-learn>=1.4.0
+plotly>=5.18.0

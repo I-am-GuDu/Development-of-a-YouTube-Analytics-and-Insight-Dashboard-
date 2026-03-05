@@ -16,7 +16,9 @@ class DatabaseManager:
         self.db_port = os.getenv('DB_PORT', '5432')
         self.db_name = os.getenv('DB_NAME', 'youtube_analytics')
         self.db_user = os.getenv('DB_USER', 'postgres')
-        self.db_password = os.getenv('DB_PASSWORD', 'your_password')
+        self.db_password = os.getenv('DB_PASSWORD')
+        if not self.db_password:
+            raise ValueError("DB_PASSWORD environment variable is not set. Please configure it in your .env file.")
         
         # Create connection string
         self.connection_string = f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
@@ -49,7 +51,8 @@ class DatabaseManager:
     def initialize_schema(self):
         """Initialize database schema by executing schema.sql"""
         try:
-            with open('src/data_storage/schema.sql', 'r') as f:
+            schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
+            with open(schema_path, 'r') as f:
                 schema_sql = f.read()
             
             with self.engine.connect() as conn:

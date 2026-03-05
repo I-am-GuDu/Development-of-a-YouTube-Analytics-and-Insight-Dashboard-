@@ -191,7 +191,7 @@ def single_channel_analysis(api_key):
             except ValueError as ve:
                 st.error(f"Error: {str(ve)}")
             except Exception as e:
-                st.error(f"Failed to fetch  {str(e)}")
+                st.error(f"Failed to fetch data: {str(e)}")
 
 def multi_channel_analysis():
     st.header("Multi-Channel Comparison")

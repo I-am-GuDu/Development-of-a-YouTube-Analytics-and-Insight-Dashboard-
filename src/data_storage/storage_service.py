@@ -194,5 +194,5 @@ class DataStorageService:
             raise e
         
     def get_predictive_analytics(self):
-     """Get predictive analytics object for forecasting and recommendations"""
-     return PredictiveAnalytics(self.db_manager)
+        """Get predictive analytics object for forecasting and recommendations"""
+        return PredictiveAnalytics(self.db_manager)
