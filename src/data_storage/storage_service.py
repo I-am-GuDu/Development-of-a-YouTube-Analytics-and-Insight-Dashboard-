@@ -7,7 +7,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from .database import DatabaseManager
 from datetime import datetime
 from .analytics_queries import AnalyticsQueries
-from .predictive_analytics import PredictiveAnalytics
 
 class DataStorageService:
     def __init__(self):
@@ -195,4 +194,5 @@ class DataStorageService:
         
     def get_predictive_analytics(self):
         """Get predictive analytics object for forecasting and recommendations"""
+        from .predictive_analytics import PredictiveAnalytics
         return PredictiveAnalytics(self.db_manager)

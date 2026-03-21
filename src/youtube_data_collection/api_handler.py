@@ -8,7 +8,6 @@ from typing import Dict, List, Optional
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from dotenv import load_dotenv
-from youtube_data_collection.data_processor import DataProcessor
 
 # Load environment variables
 load_dotenv()
