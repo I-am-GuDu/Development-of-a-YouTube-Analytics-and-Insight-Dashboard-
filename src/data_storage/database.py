@@ -2,10 +2,13 @@
 PostgreSQL Database Configuration and Connection Manager
 """
 import os
+import logging
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -45,7 +48,7 @@ class DatabaseManager:
                 conn.execute(text("SELECT 1"))
             return True
         except SQLAlchemyError as e:
-            print(f"Database connection failed: {e}")
+            logger.error("Database connection failed: %s", e)
             return False
     
     def initialize_schema(self):
@@ -58,7 +61,7 @@ class DatabaseManager:
             with self.engine.connect() as conn:
                 conn.execute(text(schema_sql))
                 conn.commit()
-            print("Database schema initialized successfully")
+            logger.info("Database schema initialized successfully")
         except Exception as e:
-            print(f"Failed to initialize schema: {e}")
+            logger.error("Failed to initialize schema: %s", e)
             raise e

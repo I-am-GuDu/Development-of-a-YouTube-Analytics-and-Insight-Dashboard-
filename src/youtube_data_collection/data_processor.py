@@ -2,10 +2,13 @@
 Data Processing Module
 Transforms raw YouTube API data into analysis-ready format
 """
+import logging
 import pandas as pd
 from datetime import datetime
 from typing import Dict, List
 import re
+
+logger = logging.getLogger(__name__)
 
 
 class DataProcessor:
@@ -111,8 +114,8 @@ class DataProcessor:
                 }
                 validated_videos.append(processed_video)
             else:
-                print(
-                    f"Warning: Skipping invalid video  {video.get('video_id', 'unknown')}")
+                logger.warning(
+                    "Skipping invalid video %s", video.get('video_id', 'unknown'))
 
         df = pd.DataFrame(validated_videos)
 

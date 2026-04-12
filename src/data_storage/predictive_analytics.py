@@ -10,8 +10,11 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import Pipeline
 from typing import Dict, List, Tuple
+import logging
 import warnings
 warnings.filterwarnings('ignore')
+
+logger = logging.getLogger(__name__)
 
 class PredictiveAnalytics:
     def __init__(self, db_manager):
@@ -74,7 +77,6 @@ class PredictiveAnalytics:
                 'confidence': 'medium' if len(df) > 10 else 'low',
                 'current_avg_engagement': df['engagement_rate'].mean(),
                 'projected_avg_engagement': np.mean(future_values),
-                'channel_id_used': channel_id  # DEBUG: Track which channel was analyzed
             }
             
         except Exception as e:
@@ -107,7 +109,7 @@ class PredictiveAnalytics:
             df = pd.read_sql(query, conn, params={'channel_id': channel_id})
         
         if df.empty:
-            return {'recommendations': [], 'message': 'No data available', 'channel_id_used': channel_id}
+            return {'recommendations': [], 'message': 'No data available'}
         
         # Content category analysis
         category_keywords = {
@@ -183,7 +185,6 @@ class PredictiveAnalytics:
             'recommendations': recommendations,
             'category_performance': category_performance.to_dict('index'),
             'total_videos_analyzed': len(df),
-            'channel_id_used': channel_id  # DEBUG: Track which channel was analyzed
         }
     
     def optimize_posting_schedule(self, channel_id: str, num_videos: int = 5) -> List[Dict]:
@@ -205,7 +206,7 @@ class PredictiveAnalytics:
             df = pd.read_sql(query, conn, params={'channel_id': channel_id})
         
         if len(df) < 5:
-            return [{'date': str(datetime.now() + timedelta(days=i+1)), 'engagement_prediction': 'insufficient_data', 'channel_id_used': channel_id} 
+            return [{'date': str(datetime.now() + timedelta(days=i+1)), 'engagement_prediction': 'insufficient_data'} 
                    for i in range(num_videos)]
         
         # Analyze day-of-week and hour-of-day patterns
@@ -247,7 +248,6 @@ class PredictiveAnalytics:
                 'recommended_hour': best_hour,
                 'predicted_engagement': round(best_score, 2),
                 'confidence': 'medium' if len(df) > 10 else 'low',
-                'channel_id_used': channel_id  # DEBUG: Track which channel was analyzed
             })
         
         return recommendations
@@ -277,7 +277,6 @@ class PredictiveAnalytics:
                 'predicted_engagement_rate': 'insufficient_data',
                 'predicted_views': 'insufficient_data',
                 'confidence': 'none',
-                'channel_id_used': channel_id
             }
         
         # Calculate baseline metrics
@@ -303,7 +302,6 @@ class PredictiveAnalytics:
             'predicted_likes': int(predicted_likes),
             'baseline_engagement': round(baseline_engagement, 2),
             'confidence': 'medium' if len(df) > 10 else 'low',
-            'channel_id_used': channel_id  # DEBUG: Track which channel was analyzed
         }
     
     def _get_category_multiplier(self, title: str, historical_df: pd.DataFrame) -> float:

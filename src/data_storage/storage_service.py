@@ -2,11 +2,14 @@
 Data Storage Service for YouTube Analytics
 Handles CRUD operations and data persistence
 """
+import logging
 import pandas as pd
 from sqlalchemy.exc import SQLAlchemyError
 from .database import DatabaseManager
 from datetime import datetime
 from .analytics_queries import AnalyticsQueries
+
+logger = logging.getLogger(__name__)
 
 class DataStorageService:
     def __init__(self):
@@ -58,11 +61,11 @@ class DataStorageService:
             })
             
             self.session.commit()
-            print(f"Channel data saved for {channel_data['channel_id']}")
+            logger.info("Channel data saved for %s", channel_data['channel_id'])
             
         except SQLAlchemyError as e:
             self.session.rollback()
-            print(f"Error saving channel data: {e}")
+            logger.error("Error saving channel data: %s", e)
             raise e
     
     def save_video_data(self, video_df: pd.DataFrame):
@@ -125,11 +128,11 @@ class DataStorageService:
                 })
             
             self.session.commit()
-            print(f"Saved {len(video_records)} videos to database")
+            logger.info("Saved %d videos to database", len(video_records))
             
         except SQLAlchemyError as e:
             self.session.rollback()
-            print(f"Error saving video data: {e}")
+            logger.error("Error saving video data: %s", e)
             raise e
     
     def save_analytics_summary(self, channel_id: str, metrics: dict):
@@ -185,11 +188,11 @@ class DataStorageService:
             })
             
             self.session.commit()
-            print(f"Analytics summary saved for channel {channel_id}")
+            logger.info("Analytics summary saved for channel %s", channel_id)
             
         except SQLAlchemyError as e:
             self.session.rollback()
-            print(f"Error saving analytics summary: {e}")
+            logger.error("Error saving analytics summary: %s", e)
             raise e
         
     def get_predictive_analytics(self):

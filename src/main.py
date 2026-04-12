@@ -6,6 +6,7 @@ YouTube Studio-style Analytics Dashboard
 import streamlit as st
 import os
 import base64
+import html
 import pandas as pd
 from dotenv import load_dotenv
 from youtube_data_collection.api_handler import YouTubeAPIHandler
@@ -13,6 +14,7 @@ from youtube_data_collection.data_processor import DataProcessor
 from datetime import datetime, timedelta
 from data_storage.storage_service import DataStorageService
 from dashboard import charts, filters
+from dashboard.effects_3d import inject_3d_effects, inject_3d_javascript, render_floating_orbs, render_hero_section
 
 load_dotenv()
 
@@ -728,11 +730,13 @@ def render_sidebar():
         # Channel info at top
         if 'channel_data' in st.session_state:
             ch = st.session_state['channel_data']
+            safe_title = html.escape(ch.get('title', 'Unknown'))
+            safe_thumb = html.escape(ch.get('thumbnail_url', ''))
             st.markdown(f"""
             <div class="sidebar-channel-info">
-                <img src="{ch.get('thumbnail_url', '')}" class="sidebar-channel-avatar" alt="Channel Avatar"/>
+                <img src="{safe_thumb}" class="sidebar-channel-avatar" alt="Channel Avatar"/>
                 <div class="sidebar-channel-label">Your channel</div>
-                <div class="sidebar-channel-name">{ch.get('title', 'Unknown')}</div>
+                <div class="sidebar-channel-name">{safe_title}</div>
             </div>
             """, unsafe_allow_html=True)
         else:
@@ -818,6 +822,12 @@ def render_sidebar():
 def page_channel_analytics():
     """Main analytics page matching YouTube Studio screenshot."""
     text_secondary = charts.get_theme_colors()['text_secondary']
+
+    # 3D Hero Section
+    render_hero_section(
+        title="Channel Analytics",
+        subtitle="Deep-dive performance metrics · Powered by YouTube Data API"
+    )
 
     # Header row
     st.markdown("""
@@ -934,9 +944,10 @@ def page_channel_analytics():
         st.markdown('<div class="yt-chart-title">🏆 Top Performing Videos</div>', unsafe_allow_html=True)
         top_df = video_df.nlargest(5, 'view_count')
         for _, video in top_df.iterrows():
+            safe_video_title = html.escape(str(video['title']))
             st.markdown(f"""
             <div class="yt-video-card">
-                <div class="yt-video-title">{video['title']}</div>
+                <div class="yt-video-title">{safe_video_title}</div>
                 <div class="yt-video-stats">
                     <span class="yt-video-stat"><span class="yt-video-stat-label">Views</span> <span class="yt-video-stat-value">{video['view_count']:,}</span></span>
                     <span class="yt-video-stat"><span class="yt-video-stat-label">Likes</span> <span class="yt-video-stat-value">{video['like_count']:,}</span></span>
@@ -1149,6 +1160,12 @@ def page_video_explorer():
     """Page: Search, filter, and explore individual videos"""
     st.markdown('<h1 class="yt-page-title">🔍 Video Explorer</h1>', unsafe_allow_html=True)
 
+    # 3D Hero Section
+    render_hero_section(
+        title="Video Explorer",
+        subtitle="Search, filter and discover top-performing content"
+    )
+
     if 'video_df' not in st.session_state:
         st.info("Please analyze a channel first from the **Analytics** page.")
         return
@@ -1214,6 +1231,12 @@ def page_video_explorer():
 def page_trend_analysis():
     """Page: Time-series trends, posting patterns, optimal times"""
     st.markdown('<h1 class="yt-page-title">📈 Trend Analysis</h1>', unsafe_allow_html=True)
+
+    # 3D Hero Section
+    render_hero_section(
+        title="Trend Analysis",
+        subtitle="Time-series insights · Posting patterns · Predictive forecasting"
+    )
 
     if 'video_df' not in st.session_state:
         st.info("Please analyze a channel first from the **Analytics** page.")
@@ -1297,6 +1320,13 @@ def page_trend_analysis():
 def page_multi_channel():
     """Page: Multi-channel comparison and competitive benchmarking"""
     st.markdown('<h1 class="yt-page-title">⚔️ Multi-Channel Comparison</h1>', unsafe_allow_html=True)
+
+    # 3D Hero Section
+    render_hero_section(
+        title="Multi-Channel Battle",
+        subtitle="Compare channels side by side · Competitive benchmarking"
+    )
+
     theme_colors = charts.get_theme_colors()
     text_primary = theme_colors['text_primary']
     text_secondary = theme_colors['text_secondary']
@@ -1421,6 +1451,11 @@ def main():
     # Apply theme based on session state
     theme = st.session_state.get('theme', 'dark')
     inject_yt_studio_styles(theme)
+
+    # ── Inject 3D interactive effects ──
+    inject_3d_effects(theme)
+    render_floating_orbs()
+    inject_3d_javascript()
 
     # Initialize sidebar state
     if 'sidebar_visible' not in st.session_state:

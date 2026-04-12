@@ -2,10 +2,13 @@
 Historical Trend Analysis Queries
 Provides analytical functions for time-series data and performance trends
 """
+import logging
 from sqlalchemy import text
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class AnalyticsQueries:
@@ -356,7 +359,7 @@ class AnalyticsQueries:
                 df = pd.read_sql(query, conn, params=params)
             return df
         except Exception as e:
-            print(f"Error comparing channels: {e}")
+            logger.error("Error comparing channels: %s", e)
             return pd.DataFrame()
 
     def get_cross_channel_performance_rankings(self, channel_ids: List[str], metric: str = 'engagement_rate') -> pd.DataFrame:
@@ -400,7 +403,7 @@ class AnalyticsQueries:
                 df = pd.read_sql(query, conn, params=params)
             return df
         except Exception as e:
-            print(f"Error ranking channels: {e}")
+            logger.error("Error ranking channels: %s", e)
             return pd.DataFrame()
 
     def get_competitive_benchmarking_report(self, primary_channel_id: str, competitor_channel_ids: List[str]) -> Dict:
@@ -471,7 +474,7 @@ class AnalyticsQueries:
             }
             
         except Exception as e:
-            print(f"Error generating benchmarking report: {e}")
+            logger.error("Error generating benchmarking report: %s", e)
             return {
                 'comparison_table': [],
                 'primary_channel_metrics': {},
@@ -521,7 +524,7 @@ class AnalyticsQueries:
                 return pd.DataFrame()
                 
         except Exception as e:
-            print(f"Error comparing content strategies: {e}")
+            logger.error("Error comparing content strategies: %s", e)
             return pd.DataFrame()
 
     def _add_content_categories(self, df: pd.DataFrame) -> pd.DataFrame:

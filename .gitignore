@@ -1,19 +1,41 @@
+# Secrets
 .env
+.env.local
+.env.dev
+.env.prod
+
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
+
+# Virtual environments
 env/
 venv/
 ENV/
 .venv/
-.env
-.env.local
-.env.dev
-.env.prod
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE files
 .vscode/
 .idea/
+
+# Logs
 *.log
-Documents/
+
+# Large media files (keep out of repo)
+*.mp4
+
+# Documents (local reports/schedules — not needed in repo)
+Documents/
