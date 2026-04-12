@@ -1,6 +1,7 @@
 """
 Streamlit Dashboard Module
 Interactive visualizations and UI components for YouTube Analytics
+YouTube Studio-style dark theme
 """
 from .charts import (
     engagement_distribution_chart,
@@ -13,5 +14,8 @@ from .charts import (
     optimal_posting_heatmap,
     multi_channel_comparison_bar,
     growth_forecast_chart,
+    views_area_chart,
+    traffic_sources_donut,
+    impressions_funnel,
 )
 from .filters import video_search_filter, channel_search_sidebar
