@@ -151,6 +151,23 @@ DB_PASSWORD=your_password_here
 streamlit run src/main.py
 ```
 
+## Deploying on Streamlit Community Cloud
+
+1. Set the entrypoint file to `src/main.py`.
+2. Push this repo with the updated `requirements.txt`.
+3. In Streamlit Community Cloud, open **Advanced settings** and add your secrets as root-level keys so the app can read them through `os.getenv()`:
+
+```toml
+YOUTUBE_API_KEY = "your_key_here"
+DB_HOST = "your_db_host"
+DB_PORT = "5432"
+DB_NAME = "youtube_analytics"
+DB_USER = "postgres"
+DB_PASSWORD = "your_password_here"
+```
+
+The dependency pin was updated so Community Cloud can install a Python-3.14-compatible Pillow wheel instead of trying to build `Pillow==10.4.0` from source.
+
 ## Secret safety checks
 
 1. Install pre-commit:
