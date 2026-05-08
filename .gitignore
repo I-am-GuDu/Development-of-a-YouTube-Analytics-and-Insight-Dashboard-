@@ -16,6 +16,16 @@ env/
 venv/
 ENV/
 .venv/
+graphify-out/
+
+# Graphify / AI agent configs
+.agents/
+.cursor/
+.kiro/
+.github/copilot-instructions.md
+AGENTS.md
+CLAUDE.md
+GEMINI.md
 
 # Test artifacts
 .pytest_cache/
@@ -31,6 +41,7 @@ Thumbs.db
 .vscode/
 .idea/
 
+
 # Logs
 *.log
 
@@ -38,4 +49,10 @@ Thumbs.db
 *.mp4
 
 # Documents (local reports/schedules — not needed in repo)
-Documents/
+Documents/
+
+# Local data / secrets
+src/users.json
+
+
+.github/

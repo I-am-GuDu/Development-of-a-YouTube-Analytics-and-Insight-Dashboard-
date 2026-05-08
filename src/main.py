@@ -15,6 +15,8 @@ from datetime import datetime, timedelta
 from data_storage.storage_service import DataStorageService
 from dashboard import charts, filters
 from dashboard.effects_3d import inject_3d_effects, inject_3d_javascript, render_floating_orbs, render_hero_section
+from auth import is_logged_in, logout, get_current_user
+from login_page import render_login_page
 
 load_dotenv()
 
@@ -812,6 +814,16 @@ def render_sidebar():
                 on_change=toggle_theme
             )
 
+        # ── User info & Logout ──────────────────────────────
+        st.markdown('<hr class="yt-divider">', unsafe_allow_html=True)
+        user = get_current_user()
+        if user:
+            st.caption(f"👤 {user['display_name']}")
+            st.caption(f"✉️ {user['email']}")
+        if st.button("🚪 Logout", key="logout_btn"):
+            logout()
+            st.rerun()
+
     return page
 
 
@@ -1443,6 +1455,17 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded"
     )
+
+    # ══════════════════════════════════════════════════════════════════════
+    # AUTHENTICATION GATE — show login page if not logged in
+    # ══════════════════════════════════════════════════════════════════════
+    if not is_logged_in():
+        render_login_page()
+        return
+
+    # ══════════════════════════════════════════════════════════════════════
+    # AUTHENTICATED — render the full dashboard
+    # ══════════════════════════════════════════════════════════════════════
 
     # Initialize theme in session state if not exists
     if 'theme' not in st.session_state:
