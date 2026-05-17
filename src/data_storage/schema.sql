@@ -1,4 +1,19 @@
 -- database: :memory:
+
+-- Create users table (authentication)
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    display_name VARCHAR(100) NOT NULL DEFAULT '',
+    password_hash VARCHAR(255) NOT NULL,
+    salt VARCHAR(128) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
 -- Create channels table
 CREATE TABLE IF NOT EXISTS channels (
     channel_id VARCHAR(50) PRIMARY KEY,

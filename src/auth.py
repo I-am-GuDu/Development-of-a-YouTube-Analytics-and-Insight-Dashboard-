@@ -1,21 +1,29 @@
 """
 Authentication Module
 Handles user registration, login, session management.
-Uses file-based storage (users.json) — upgradeable to PostgreSQL later.
+Uses PostgreSQL database for persistent user storage.
 """
 import hashlib
-import json
-import os
+import logging
 import secrets
 import streamlit as st
 from datetime import datetime
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+
+logger = logging.getLogger(__name__)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# CONFIGURATION
+# DATABASE CONNECTION (lazy singleton)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-USERS_FILE = os.path.join(os.path.dirname(__file__), 'users.json')
+def _get_db_manager():
+    """Get or create a cached DatabaseManager instance."""
+    if 'db_manager' not in st.session_state:
+        from data_storage.database import DatabaseManager
+        st.session_state['db_manager'] = DatabaseManager()
+    return st.session_state['db_manager']
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -47,28 +55,56 @@ def verify_password(password: str, stored_hash: str, salt: str) -> bool:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# USER STORE (JSON file)
+# USER STORE (PostgreSQL)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def load_users() -> dict:
-    """Load users from the JSON file."""
-    if not os.path.exists(USERS_FILE):
-        return {}
+def _get_user_by_email(email: str) -> dict | None:
+    """Fetch a user record from the database by email.
+
+    Returns:
+        User dict or None if not found.
+    """
+    db = _get_db_manager()
     try:
-        with open(USERS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return {}
+        with db.engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT id, email, display_name, password_hash, salt, is_active, created_at, last_login "
+                     "FROM users WHERE email = :email"),
+                {"email": email}
+            )
+            row = result.fetchone()
+            if row:
+                return {
+                    "id": row[0],
+                    "email": row[1],
+                    "display_name": row[2],
+                    "password_hash": row[3],
+                    "salt": row[4],
+                    "is_active": row[5],
+                    "created_at": row[6],
+                    "last_login": row[7],
+                }
+    except SQLAlchemyError as e:
+        logger.error("Error fetching user by email: %s", e)
+    return None
 
 
-def save_users(users: dict) -> None:
-    """Save users to the JSON file."""
-    with open(USERS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(users, f, indent=2, ensure_ascii=False)
+def _update_last_login(email: str) -> None:
+    """Update the last_login timestamp for a user."""
+    db = _get_db_manager()
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(
+                text("UPDATE users SET last_login = :now WHERE email = :email"),
+                {"now": datetime.now(), "email": email}
+            )
+            conn.commit()
+    except SQLAlchemyError as e:
+        logger.error("Error updating last_login: %s", e)
 
 
 def register_user(email: str, password: str, display_name: str = '') -> tuple[bool, str]:
-    """Register a new user.
+    """Register a new user in the PostgreSQL database.
 
     Returns:
         Tuple of (success: bool, message: str)
@@ -83,21 +119,34 @@ def register_user(email: str, password: str, display_name: str = '') -> tuple[bo
     if not display_name.strip():
         display_name = email.split('@')[0]
 
-    users = load_users()
-
-    if email in users:
+    # Check if user already exists
+    if _get_user_by_email(email):
         return False, "An account with this email already exists."
 
+    # Hash password and insert
     hashed, salt = hash_password(password)
-    users[email] = {
-        'display_name': display_name.strip(),
-        'password_hash': hashed,
-        'salt': salt,
-        'created_at': datetime.now().isoformat(),
-    }
-
-    save_users(users)
-    return True, "Account created successfully! You can now log in."
+    db = _get_db_manager()
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(
+                text("""
+                    INSERT INTO users (email, display_name, password_hash, salt, created_at)
+                    VALUES (:email, :display_name, :password_hash, :salt, :created_at)
+                """),
+                {
+                    "email": email,
+                    "display_name": display_name.strip(),
+                    "password_hash": hashed,
+                    "salt": salt,
+                    "created_at": datetime.now(),
+                }
+            )
+            conn.commit()
+        logger.info("New user registered: %s", email)
+        return True, "Account created successfully! You can now log in."
+    except SQLAlchemyError as e:
+        logger.error("Error registering user: %s", e)
+        return False, "Registration failed. Please try again later."
 
 
 def authenticate_user(email: str, password: str) -> tuple[bool, str, dict | None]:
@@ -107,14 +156,19 @@ def authenticate_user(email: str, password: str) -> tuple[bool, str, dict | None
         Tuple of (success: bool, message: str, user_data: dict | None)
     """
     email = email.strip().lower()
-    users = load_users()
+    user = _get_user_by_email(email)
 
-    if email not in users:
+    if not user:
         return False, "Invalid email or password.", None
 
-    user = users[email]
+    if not user.get("is_active", True):
+        return False, "This account has been deactivated.", None
+
     if not verify_password(password, user['password_hash'], user['salt']):
         return False, "Invalid email or password.", None
+
+    # Update last login timestamp
+    _update_last_login(email)
 
     return True, "Login successful!", {
         'email': email,
