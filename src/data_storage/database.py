@@ -12,21 +12,29 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+def _get_secret(key: str, default=None):
+    """Read a secret from st.secrets (Streamlit Cloud) or os.getenv (local)."""
+    try:
+        import streamlit as st
+        return st.secrets[key]
+    except Exception:
+        return os.getenv(key, default)
+
 class DatabaseManager:
     def __init__(self):
-        # Get database credentials from environment variables
-        self.database_url = os.getenv('DATABASE_URL')
+        # Try st.secrets first (Streamlit Cloud), then fall back to os.getenv (local .env)
+        self.database_url = _get_secret('DATABASE_URL')
         if self.database_url:
             self.connection_string = self.database_url
         else:
-            self.db_host = os.getenv('DB_HOST', 'localhost')
-            self.db_port = os.getenv('DB_PORT', '5432')
-            self.db_name = os.getenv('DB_NAME', 'youtube_analytics')
-            self.db_user = os.getenv('DB_USER', 'postgres')
-            self.db_password = os.getenv('DB_PASSWORD')
+            self.db_host = _get_secret('DB_HOST', 'localhost')
+            self.db_port = _get_secret('DB_PORT', '5432')
+            self.db_name = _get_secret('DB_NAME', 'youtube_analytics')
+            self.db_user = _get_secret('DB_USER', 'postgres')
+            self.db_password = _get_secret('DB_PASSWORD')
             if not self.db_password:
-                raise ValueError("DB_PASSWORD environment variable is not set. Please configure it in your .env file.")
-            
+                raise ValueError("DB_PASSWORD is not set. Add it to your .env file or Streamlit Cloud secrets.")
+
             # Create connection string
             self.connection_string = f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
         
