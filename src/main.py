@@ -1402,9 +1402,11 @@ def page_multi_channel():
     </div>
     """, unsafe_allow_html=True)
 
+    st.info("💡 Use **Channel IDs** (e.g. `UC_x5XG1OV2P6uZZ5FSM9Ttw`) for multi-channel analysis. You can find a channel's ID on the **Analytics** page after analyzing it.")
+
     channel_ids_input = st.text_area(
-        "Enter Channel IDs or @Usernames (one per line):",
-        placeholder="UC_x5XG1OV2P6uZZ5FSM9Ttw\n@chaiaurcode\n@username",
+        "Enter Channel IDs (one per line):",
+        placeholder="UC_x5XG1OV2P6uZZ5FSM9Ttw\nUCXgGY0wkgOzynnHvSEVmE3A",
         height=120
     )
 
