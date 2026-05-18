@@ -51,8 +51,7 @@ Thumbs.db
 # Documents (local reports/schedules — not needed in repo)
 Documents/
 
-# Local data / secrets
-src/users.json
+# Antigravity config
+pyrightconfig.json
 
 
-.github/

@@ -612,7 +612,8 @@ def fetch_channel_data(api_key, channel_input):
     elif input_text.startswith('UC') and len(input_text) == 24:
         raw_channel_info = handler.get_channel_details(input_text)
     else:
-        raise ValueError("Invalid format. Use channel ID (UC...) or username (@...)")
+        raise ValueError(
+            "Invalid format. Use channel ID (UC...) or username (@...)")
 
     processed_channel = processor.process_channel_data(raw_channel_info)
 
@@ -637,7 +638,8 @@ def save_to_database(processed_channel, video_df, engagement_metrics):
         storage_service = DataStorageService()
         storage_service.save_channel_data(processed_channel)
         storage_service.save_video_data(video_df)
-        storage_service.save_analytics_summary(processed_channel['channel_id'], engagement_metrics)
+        storage_service.save_analytics_summary(
+            processed_channel['channel_id'], engagement_metrics)
         return True, "Data saved to database successfully!"
     except Exception as e:
         return False, f"Could not save to database: {str(e)}"
@@ -692,7 +694,8 @@ def render_traffic_source_bars(video_df):
         'Price Analysis': 'Other',
     }
 
-    colors = ['#7B68EE', '#3EA6FF', '#22d3ee', '#a78bfa', '#60a5fa', '#818cf8', '#c084fc', '#38bdf8', '#6366f1']
+    colors = ['#7B68EE', '#3EA6FF', '#22d3ee', '#a78bfa',
+              '#60a5fa', '#818cf8', '#c084fc', '#38bdf8', '#6366f1']
     sources = []
     for cat, views in category_views.sort_values(ascending=False).items():
         pct = views / total * 100
@@ -745,7 +748,8 @@ def render_sidebar():
             intro_video_path = 'Profile_Pic.mp4'
             if os.path.exists(intro_video_path):
                 with open(intro_video_path, 'rb') as video_file:
-                    video_b64 = base64.b64encode(video_file.read()).decode('ascii')
+                    video_b64 = base64.b64encode(
+                        video_file.read()).decode('ascii')
 
                 st.markdown(f"""
                 <div class="sidebar-channel-info">
@@ -774,7 +778,8 @@ def render_sidebar():
         # Navigation
         page = st.radio(
             "Navigation",
-            ["📊 Analytics", "🔍 Video Explorer", "📈 Trend Analysis", "⚔️ Multi-Channel"],
+            ["📊 Analytics", "🔍 Video Explorer",
+                "📈 Trend Analysis", "⚔️ Multi-Channel"],
             label_visibility="collapsed"
         )
 
@@ -796,7 +801,8 @@ def render_sidebar():
 
         # Theme toggle with callback for instant update
         def toggle_theme():
-            st.session_state['theme'] = 'dark' if st.session_state.get('theme_toggle_key') else 'light'
+            st.session_state['theme'] = 'dark' if st.session_state.get(
+                'theme_toggle_key') else 'light'
 
         col_label, col_toggle = st.columns([5, 2])
         with col_label:
@@ -870,10 +876,12 @@ def page_channel_analytics():
 
         try:
             with st.spinner("Fetching channel data from YouTube..."):
-                processed_channel, video_df, engagement_metrics = fetch_channel_data(api_key, channel_input)
+                processed_channel, video_df, engagement_metrics = fetch_channel_data(
+                    api_key, channel_input)
 
             # Save to DB
-            success, msg = save_to_database(processed_channel, video_df, engagement_metrics)
+            success, msg = save_to_database(
+                processed_channel, video_df, engagement_metrics)
             if success:
                 st.success(msg)
             else:
@@ -953,7 +961,8 @@ def page_channel_analytics():
         st.markdown('<hr class="yt-divider">', unsafe_allow_html=True)
 
         # Top performing videos
-        st.markdown('<div class="yt-chart-title">🏆 Top Performing Videos</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="yt-chart-title">🏆 Top Performing Videos</div>', unsafe_allow_html=True)
         top_df = video_df.nlargest(5, 'view_count')
         for _, video in top_df.iterrows():
             safe_video_title = html.escape(str(video['title']))
@@ -982,8 +991,10 @@ def page_channel_analytics():
         if half > 0:
             recent = video_df.head(half)
             older = video_df.tail(half)
-            view_trend = ((recent['view_count'].mean() - older['view_count'].mean()) / max(older['view_count'].mean(), 1)) * 100
-            eng_trend = ((recent['engagement_rate'].mean() - older['engagement_rate'].mean()) / max(older['engagement_rate'].mean(), 1)) * 100
+            view_trend = ((recent['view_count'].mean(
+            ) - older['view_count'].mean()) / max(older['view_count'].mean(), 1)) * 100
+            eng_trend = ((recent['engagement_rate'].mean(
+            ) - older['engagement_rate'].mean()) / max(older['engagement_rate'].mean(), 1)) * 100
         else:
             view_trend = 0
             eng_trend = 0
@@ -1019,9 +1030,11 @@ def page_channel_analytics():
         # Large area chart
         st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
-        st.plotly_chart(charts.views_area_chart(video_df), use_container_width=True)
+        st.plotly_chart(charts.views_area_chart(
+            video_df), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('<span class="yt-see-more">SEE MORE</span>', unsafe_allow_html=True)
+        st.markdown('<span class="yt-see-more">SEE MORE</span>',
+                    unsafe_allow_html=True)
 
         st.markdown('<div style="height:20px;"></div>', unsafe_allow_html=True)
 
@@ -1034,7 +1047,8 @@ def page_channel_analytics():
                 <div class="yt-chart-title">Traffic source types</div>
                 <div class="yt-chart-subtitle">Views · Last 28 days</div>
             """, unsafe_allow_html=True)
-            st.plotly_chart(charts.traffic_sources_donut(video_df), use_container_width=True)
+            st.plotly_chart(charts.traffic_sources_donut(
+                video_df), use_container_width=True)
             render_traffic_source_bars(video_df)
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1052,7 +1066,8 @@ def page_channel_analytics():
             total_interactions = total_likes + total_comments
             ctr = (total_interactions / max(total_v, 1)) * 100
 
-            render_metric_card("Total Views (Impressions)", format_number(total_v))
+            render_metric_card("Total Views (Impressions)",
+                               format_number(total_v))
             st.markdown(f"""
             <div style="text-align:center;padding:8px 0;color:{text_secondary};font-size:0.8rem;font-family:Roboto,sans-serif;">
                 {ctr:.1f}% engagement rate
@@ -1073,7 +1088,8 @@ def page_channel_analytics():
         with c2:
             render_metric_card(
                 "Avg Comments per Video",
-                format_number(engagement_metrics.get('avg_comments_per_video', 0))
+                format_number(engagement_metrics.get(
+                    'avg_comments_per_video', 0))
             )
         with c3:
             render_metric_card(
@@ -1084,32 +1100,38 @@ def page_channel_analytics():
         st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
 
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
-        st.plotly_chart(charts.engagement_distribution_chart(video_df), use_container_width=True)
+        st.plotly_chart(charts.engagement_distribution_chart(
+            video_df), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
-        st.plotly_chart(charts.views_vs_likes_scatter(video_df), use_container_width=True)
+        st.plotly_chart(charts.views_vs_likes_scatter(
+            video_df), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ════════════════════════ AUDIENCE TAB ════════════════════════════════
     with tab_audience:
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
-        st.plotly_chart(charts.posting_frequency_chart(video_df), use_container_width=True)
+        st.plotly_chart(charts.posting_frequency_chart(
+            video_df), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
-        st.plotly_chart(charts.optimal_posting_heatmap(video_df), use_container_width=True)
+        st.plotly_chart(charts.optimal_posting_heatmap(
+            video_df), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Category breakdown
         col1, col2 = st.columns(2)
         with col1:
             st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
-            st.plotly_chart(charts.category_performance_bar(video_df), use_container_width=True)
+            st.plotly_chart(charts.category_performance_bar(
+                video_df), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         with col2:
             st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
-            st.plotly_chart(charts.category_distribution_pie(video_df), use_container_width=True)
+            st.plotly_chart(charts.category_distribution_pie(
+                video_df), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
     # ═══════════════════════ REVENUE TAB ══════════════════════════════════
@@ -1128,10 +1150,12 @@ def page_channel_analytics():
             channel_id = channel_data.get('channel_id')
 
             if channel_id:
-                forecast = predictive.forecast_channel_growth(channel_id, days_ahead=30)
+                forecast = predictive.forecast_channel_growth(
+                    channel_id, days_ahead=30)
                 fig = charts.growth_forecast_chart(forecast)
                 if fig:
-                    st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
+                    st.markdown('<div class="yt-chart-card">',
+                                unsafe_allow_html=True)
                     st.plotly_chart(fig, use_container_width=True)
                     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1147,19 +1171,24 @@ def page_channel_analytics():
                             f"{forecast.get('projected_avg_engagement', 0):.2f}%"
                         )
                 else:
-                    st.info("Not enough data for growth forecasting (need at least 5 videos in database).")
+                    st.info(
+                        "Not enough data for growth forecasting (need at least 5 videos in database).")
 
                 st.markdown('<hr class="yt-divider">', unsafe_allow_html=True)
-                st.markdown('<div class="yt-chart-title">Content Strategy Recommendations</div>', unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="yt-chart-title">Content Strategy Recommendations</div>', unsafe_allow_html=True)
                 strategy = predictive.recommend_content_strategy(channel_id)
                 for rec in strategy.get('recommendations', []):
                     if rec['type'] == 'content_type':
-                        st.success(f"**Best Content Type:** {rec['category']} — {rec['reason']}")
+                        st.success(
+                            f"**Best Content Type:** {rec['category']} — {rec['reason']}")
                     elif rec['type'] == 'posting_time':
-                        st.success(f"**Best Posting Time:** {rec['optimal_day']} at {rec['optimal_hour']}:00 — {rec['reason']}")
+                        st.success(
+                            f"**Best Posting Time:** {rec['optimal_day']} at {rec['optimal_hour']}:00 — {rec['reason']}")
 
                 if not strategy.get('recommendations'):
-                    st.info("Not enough data to generate content strategy recommendations.")
+                    st.info(
+                        "Not enough data to generate content strategy recommendations.")
         except Exception as e:
             st.warning(f"Predictive analytics unavailable: {str(e)}")
 
@@ -1170,7 +1199,8 @@ def page_channel_analytics():
 
 def page_video_explorer():
     """Page: Search, filter, and explore individual videos"""
-    st.markdown('<h1 class="yt-page-title">🔍 Video Explorer</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="yt-page-title">🔍 Video Explorer</h1>',
+                unsafe_allow_html=True)
 
     # 3D Hero Section
     render_hero_section(
@@ -1202,10 +1232,14 @@ def page_video_explorer():
         return
 
     # Display results as interactive table
-    st.markdown('<div class="yt-chart-title">Video Results</div>', unsafe_allow_html=True)
-    display_df = filtered_df[['title', 'view_count', 'like_count', 'comment_count', 'engagement_rate', 'category', 'publish_date']].copy()
-    display_df['publish_date'] = display_df['publish_date'].dt.strftime('%Y-%m-%d')
-    display_df.columns = ['Title', 'Views', 'Likes', 'Comments', 'Engagement %', 'Category', 'Published']
+    st.markdown('<div class="yt-chart-title">Video Results</div>',
+                unsafe_allow_html=True)
+    display_df = filtered_df[['title', 'view_count', 'like_count',
+                              'comment_count', 'engagement_rate', 'category', 'publish_date']].copy()
+    display_df['publish_date'] = display_df['publish_date'].dt.strftime(
+        '%Y-%m-%d')
+    display_df.columns = ['Title', 'Views', 'Likes',
+                          'Comments', 'Engagement %', 'Category', 'Published']
 
     st.dataframe(
         display_df,
@@ -1225,14 +1259,18 @@ def page_video_explorer():
     with c1:
         render_metric_card("Videos Found", str(len(filtered_df)))
     with c2:
-        render_metric_card("Avg Views", format_number(filtered_df['view_count'].mean()))
+        render_metric_card("Avg Views", format_number(
+            filtered_df['view_count'].mean()))
     with c3:
-        render_metric_card("Avg Engagement", f"{filtered_df['engagement_rate'].mean():.2f}%")
+        render_metric_card(
+            "Avg Engagement", f"{filtered_df['engagement_rate'].mean():.2f}%")
     with c4:
-        render_metric_card("Total Views", format_number(filtered_df['view_count'].sum()))
+        render_metric_card("Total Views", format_number(
+            filtered_df['view_count'].sum()))
 
     st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
-    st.plotly_chart(charts.views_vs_likes_scatter(filtered_df, top_n=len(filtered_df)), use_container_width=True)
+    st.plotly_chart(charts.views_vs_likes_scatter(
+        filtered_df, top_n=len(filtered_df)), use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -1242,7 +1280,8 @@ def page_video_explorer():
 
 def page_trend_analysis():
     """Page: Time-series trends, posting patterns, optimal times"""
-    st.markdown('<h1 class="yt-page-title">📈 Trend Analysis</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="yt-page-title">📈 Trend Analysis</h1>',
+                unsafe_allow_html=True)
 
     # 3D Hero Section
     render_hero_section(
@@ -1266,38 +1305,46 @@ def page_trend_analysis():
     </div>
     """, unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs(["📊 Engagement Trends", "📅 Posting Patterns", "🎯 Predictive Insights"])
+    tab1, tab2, tab3 = st.tabs(
+        ["📊 Engagement Trends", "📅 Posting Patterns", "🎯 Predictive Insights"])
 
     with tab1:
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
-        st.plotly_chart(charts.engagement_over_time_line(video_df), use_container_width=True)
+        st.plotly_chart(charts.engagement_over_time_line(
+            video_df), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
-        st.plotly_chart(charts.views_over_time_line(video_df), use_container_width=True)
+        st.plotly_chart(charts.views_over_time_line(
+            video_df), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with tab2:
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
-        st.plotly_chart(charts.posting_frequency_chart(video_df), use_container_width=True)
+        st.plotly_chart(charts.posting_frequency_chart(
+            video_df), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
-        st.plotly_chart(charts.optimal_posting_heatmap(video_df), use_container_width=True)
+        st.plotly_chart(charts.optimal_posting_heatmap(
+            video_df), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with tab3:
-        st.markdown('<div class="yt-chart-title">Growth Forecast</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="yt-chart-title">Growth Forecast</div>', unsafe_allow_html=True)
         try:
             storage_service = DataStorageService()
             predictive = storage_service.get_predictive_analytics()
             channel_id = channel_data.get('channel_id')
 
             if channel_id:
-                forecast = predictive.forecast_channel_growth(channel_id, days_ahead=30)
+                forecast = predictive.forecast_channel_growth(
+                    channel_id, days_ahead=30)
                 fig = charts.growth_forecast_chart(forecast)
                 if fig:
-                    st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
+                    st.markdown('<div class="yt-chart-card">',
+                                unsafe_allow_html=True)
                     st.plotly_chart(fig, use_container_width=True)
                     st.markdown('</div>', unsafe_allow_html=True)
                     c1, c2 = st.columns(2)
@@ -1308,19 +1355,24 @@ def page_trend_analysis():
                         render_metric_card("Projected Avg Engagement",
                                            f"{forecast.get('projected_avg_engagement', 0):.2f}%")
                 else:
-                    st.info("Not enough data for growth forecasting (need at least 5 videos in database).")
+                    st.info(
+                        "Not enough data for growth forecasting (need at least 5 videos in database).")
 
                 st.markdown('<hr class="yt-divider">', unsafe_allow_html=True)
-                st.markdown('<div class="yt-chart-title">Content Strategy Recommendations</div>', unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="yt-chart-title">Content Strategy Recommendations</div>', unsafe_allow_html=True)
                 strategy = predictive.recommend_content_strategy(channel_id)
                 for rec in strategy.get('recommendations', []):
                     if rec['type'] == 'content_type':
-                        st.success(f"**Best Content Type:** {rec['category']} — {rec['reason']}")
+                        st.success(
+                            f"**Best Content Type:** {rec['category']} — {rec['reason']}")
                     elif rec['type'] == 'posting_time':
-                        st.success(f"**Best Posting Time:** {rec['optimal_day']} at {rec['optimal_hour']}:00 — {rec['reason']}")
+                        st.success(
+                            f"**Best Posting Time:** {rec['optimal_day']} at {rec['optimal_hour']}:00 — {rec['reason']}")
 
                 if not strategy.get('recommendations'):
-                    st.info("Not enough data to generate content strategy recommendations.")
+                    st.info(
+                        "Not enough data to generate content strategy recommendations.")
         except Exception as e:
             st.warning(f"Predictive analytics unavailable: {str(e)}")
 
@@ -1331,7 +1383,8 @@ def page_trend_analysis():
 
 def page_multi_channel():
     """Page: Multi-channel comparison and competitive benchmarking"""
-    st.markdown('<h1 class="yt-page-title">⚔️ Multi-Channel Comparison</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="yt-page-title">⚔️ Multi-Channel Comparison</h1>',
+                unsafe_allow_html=True)
 
     # 3D Hero Section
     render_hero_section(
@@ -1350,64 +1403,103 @@ def page_multi_channel():
     """, unsafe_allow_html=True)
 
     channel_ids_input = st.text_area(
-        "Enter Channel IDs (one per line):",
-        placeholder="UC_x5XG1OV2P6uZZ5FSM9Ttw\nUCanotherchannelid\n@username",
+        "Enter Channel IDs or @Usernames (one per line):",
+        placeholder="UC_x5XG1OV2P6uZZ5FSM9Ttw\n@chaiaurcode\n@username",
         height=120
     )
 
     if st.button("Compare Channels", type="primary"):
         if not channel_ids_input.strip():
-            st.error("Please enter at least one channel ID")
+            st.error("Please enter at least one channel ID or @username")
             return
 
-        channel_ids = [cid.strip() for cid in channel_ids_input.split('\n') if cid.strip()]
+        raw_inputs = [cid.strip()
+                      for cid in channel_ids_input.split('\n') if cid.strip()]
 
-        if len(channel_ids) < 2:
+        if len(raw_inputs) < 2:
             st.error("Please enter at least 2 channels for comparison")
             return
 
         try:
-            with st.spinner("Analyzing channels..."):
+            with st.spinner("Resolving channel identifiers & analyzing..."):
+                # Resolve @usernames to actual channel IDs
+                handler = YouTubeAPIHandler()
+                channel_ids = []
+                for entry in raw_inputs:
+                    if entry.startswith('@'):
+                        try:
+                            channel_info = handler.get_channel_by_username(
+                                entry)
+                            resolved_id = channel_info['id']
+                            channel_ids.append(resolved_id)
+                            st.caption(f"✅ Resolved {entry} → {resolved_id}")
+                        except Exception as resolve_err:
+                            st.warning(
+                                f"⚠️ Could not resolve {entry}: {resolve_err}")
+                    elif entry.startswith('UC') and len(entry) == 24:
+                        channel_ids.append(entry)
+                    else:
+                        st.warning(
+                            f"⚠️ Skipping invalid input: {entry} (use UC... channel ID or @username)")
+
+                if len(channel_ids) < 2:
+                    st.error(
+                        "Need at least 2 valid channels after resolving. Make sure the channels have been analyzed individually first.")
+                    return
+
                 storage_service = DataStorageService()
                 analytics = storage_service.get_analytics_queries()
 
-                comparison_df = analytics.compare_multiple_channels(channel_ids)
+                comparison_df = analytics.compare_multiple_channels(
+                    channel_ids)
 
                 if comparison_df.empty:
-                    st.warning("No data found. Please analyze these channels individually first.")
+                    st.warning(
+                        "No data found. Please analyze these channels individually first.")
                     return
 
                 # Comparison table
-                st.markdown('<div class="yt-chart-title">Channel Comparison</div>', unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="yt-chart-title">Channel Comparison</div>', unsafe_allow_html=True)
                 st.dataframe(
-                    comparison_df[['title', 'subscriber_count', 'view_count', 'video_count', 'avg_engagement_rate', 'engagement_efficiency']],
+                    comparison_df[['title', 'subscriber_count', 'view_count',
+                                   'video_count', 'avg_engagement_rate', 'engagement_efficiency']],
                     use_container_width=True, hide_index=True
                 )
 
                 # Charts
-                tab1, tab2, tab3 = st.tabs(["📊 Metrics", "📁 Content Strategy", "🏆 Benchmarking"])
+                tab1, tab2, tab3 = st.tabs(
+                    ["📊 Metrics", "📁 Content Strategy", "🏆 Benchmarking"])
 
                 with tab1:
-                    st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
+                    st.markdown('<div class="yt-chart-card">',
+                                unsafe_allow_html=True)
                     st.plotly_chart(
-                        charts.multi_channel_comparison_bar(comparison_df, 'avg_engagement_rate', 'Engagement Rate Comparison', 'Avg Engagement Rate (%)'),
+                        charts.multi_channel_comparison_bar(
+                            comparison_df, 'avg_engagement_rate', 'Engagement Rate Comparison', 'Avg Engagement Rate (%)'),
                         use_container_width=True
                     )
                     st.markdown('</div>', unsafe_allow_html=True)
 
-                    st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
+                    st.markdown('<div class="yt-chart-card">',
+                                unsafe_allow_html=True)
                     st.plotly_chart(
-                        charts.multi_channel_comparison_bar(comparison_df, 'subscriber_count', 'Subscriber Count Comparison', 'Subscribers'),
+                        charts.multi_channel_comparison_bar(
+                            comparison_df, 'subscriber_count', 'Subscriber Count Comparison', 'Subscribers'),
                         use_container_width=True
                     )
                     st.markdown('</div>', unsafe_allow_html=True)
 
                 with tab2:
-                    strategy_df = analytics.get_content_strategy_comparison(channel_ids)
+                    strategy_df = analytics.get_content_strategy_comparison(
+                        channel_ids)
                     if not strategy_df.empty:
-                        category_comparison = strategy_df.groupby(['channel_title', 'category']).size().unstack(fill_value=0)
-                        st.markdown('<div class="yt-chart-title">Content Category Distribution by Channel</div>', unsafe_allow_html=True)
-                        st.dataframe(category_comparison, use_container_width=True)
+                        category_comparison = strategy_df.groupby(
+                            ['channel_title', 'category']).size().unstack(fill_value=0)
+                        st.markdown(
+                            '<div class="yt-chart-title">Content Category Distribution by Channel</div>', unsafe_allow_html=True)
+                        st.dataframe(category_comparison,
+                                     use_container_width=True)
                     else:
                         st.info("No content strategy data available.")
 
@@ -1417,7 +1509,8 @@ def page_multi_channel():
                         competitor_channel_ids=channel_ids[1:]
                     )
 
-                    primary_title = report['primary_channel_metrics'].get('title', 'Primary Channel')
+                    primary_title = report['primary_channel_metrics'].get(
+                        'title', 'Primary Channel')
                     st.markdown(f"""
                     <div style="color:{text_primary};font-family:Roboto,sans-serif;font-weight:600;font-size:1rem;margin-bottom:12px;">
                         Primary Channel: {primary_title}
