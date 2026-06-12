@@ -855,7 +855,11 @@ def page_channel_analytics():
     </div>
     """, unsafe_allow_html=True)
 
-    api_key = os.getenv("YOUTUBE_API_KEY")
+    # Read API key — st.secrets (Cloud) or os.getenv (local .env)
+    try:
+        api_key = st.secrets.get("YOUTUBE_API_KEY", os.getenv("YOUTUBE_API_KEY"))
+    except Exception:
+        api_key = os.getenv("YOUTUBE_API_KEY")
     if not api_key or api_key == "your_actual_api_key_here":
         st.error("YouTube API Key not configured! Set YOUTUBE_API_KEY in .env file")
         return

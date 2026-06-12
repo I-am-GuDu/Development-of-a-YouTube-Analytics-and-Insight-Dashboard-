@@ -14,7 +14,12 @@ load_dotenv()
 
 class YouTubeAPIHandler:
     def __init__(self):
-        self.api_key = os.getenv("YOUTUBE_API_KEY")
+        # Try st.secrets first (Streamlit Cloud), then fall back to os.getenv (local .env)
+        try:
+            import streamlit as st
+            self.api_key = st.secrets.get("YOUTUBE_API_KEY", os.getenv("YOUTUBE_API_KEY"))
+        except Exception:
+            self.api_key = os.getenv("YOUTUBE_API_KEY")
         if not self.api_key:
             raise ValueError("YOUTUBE_API_KEY environment variable not set")
         
