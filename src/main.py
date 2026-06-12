@@ -851,9 +851,7 @@ def page_channel_analytics():
     st.markdown("""
     <div class="yt-header-row">
         <h1 class="yt-page-title">Channel analytics</h1>
-        <div class="yt-date-range">
-            <strong>Last 28 days</strong>
-        </div>
+       
     </div>
     """, unsafe_allow_html=True)
 
@@ -1573,7 +1571,7 @@ def main():
     # ── Inject 3D interactive effects ──
     inject_3d_effects(theme)
     render_floating_orbs()
-    inject_3d_javascript()
+    inject_3d_javascript(theme)
 
     # Initialize sidebar state
     if 'sidebar_visible' not in st.session_state:
