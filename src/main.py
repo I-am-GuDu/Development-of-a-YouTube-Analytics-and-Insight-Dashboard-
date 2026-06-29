@@ -80,6 +80,12 @@ def inject_yt_studio_styles(mode='light'):
             color: var(--body) !important;
             font-family: var(--font-body);
         }}
+        /* Native Streamlit header: transparent so no leftover dark bar
+           collides with the fixed theme toggle. Token-independent — page
+           bg shows through, reads correctly in both modes. */
+        [data-testid="stHeader"], .stApp > header {{
+            background: transparent !important;
+        }}
         .stApp, [data-testid="stSidebar"], .yt-metric-card, .yt-chart-card,
         .yt-video-card, [data-testid="stMetric"], .stButton > button,
         .stTextInput input {{
@@ -311,6 +317,34 @@ def inject_yt_studio_styles(mode='light'):
             background: var(--input-bg) !important;
             border-color: var(--input-border) !important;
             border-radius: 10px !important;
+        }}
+        /* Select selected-value + option-list text follow tokens (both modes) */
+        [data-baseweb="select"] div {{ color: var(--body) !important; }}
+        [data-baseweb="popover"] [role="option"] {{
+            background: var(--bg-card) !important;
+            color: var(--body) !important;
+        }}
+        [data-baseweb="popover"] [role="option"]:hover {{
+            background: var(--brand-soft) !important;
+        }}
+        /* Placeholder text — token-driven so it is visible in light mode */
+        .stTextInput input::placeholder,
+        .stNumberInput input::placeholder,
+        .stTextArea textarea::placeholder {{
+            color: var(--faint) !important;
+            opacity: 1;
+        }}
+        /* Date inputs: field + calendar popover follow tokens (fix dark-default
+           chrome bleeding into light mode) */
+        .stDateInput [data-baseweb="input"],
+        .stDateInput input {{
+            background: var(--input-bg) !important;
+            color: var(--body) !important;
+            border-color: var(--input-border) !important;
+        }}
+        [data-baseweb="calendar"] {{
+            background: var(--bg-card) !important;
+            color: var(--body) !important;
         }}
 
         [data-testid="stDataFrame"], [data-testid="stTable"] {{
@@ -596,7 +630,7 @@ def render_sidebar():
 
                 st.markdown(f"""
                 <div class="sidebar-channel-info">
-                    <div style="width:80px;height:80px;border-radius:50%;overflow:hidden;background:#111;margin:0 auto 10px;">
+                    <div style="width:80px;height:80px;border-radius:50%;overflow:hidden;background:var(--bg-subtle);margin:0 auto 10px;">
                         <video autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;display:block;">
                             <source src="data:video/mp4;base64,{video_b64}" type="video/mp4">
                         </video>
@@ -608,7 +642,7 @@ def render_sidebar():
             else:
                 st.markdown(f"""
                 <div class="sidebar-channel-info">
-                    <div style="width:80px;height:80px;border-radius:50%;background:#333;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;">
+                    <div style="width:80px;height:80px;border-radius:50%;background:var(--bg-subtle);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;">
                         <span style="font-size:2rem;color:{text_secondary};">❤️</span>
                     </div>
                     <div class="sidebar-channel-label">Your channel</div>

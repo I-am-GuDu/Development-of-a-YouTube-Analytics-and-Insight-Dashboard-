@@ -120,6 +120,9 @@ def _inject_login_styles(mode='light'):
             border-color: {t['brand']} !important;
             box-shadow: 0 0 0 3px {t['focus_ring']} !important;
         }}
+        .stApp .block-container .stTextInput > div > div > input::placeholder {{
+            color: {t['text_faint']} !important; opacity: 1;
+        }}
         .stApp .block-container .stTextInput > label {{
             color: {t['text_secondary']} !important;
             font-family: 'Inter', sans-serif !important;
