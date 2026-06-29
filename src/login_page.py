@@ -91,7 +91,7 @@ def _inject_login_styles(mode='light'):
         .login-title {{
             font-family: 'Space Grotesk', sans-serif;
             font-size: 1.55rem; font-weight: 700; letter-spacing: -0.02em;
-            color: {t['text_primary']}; text-align: center; margin: 0;
+            color: {t['text_primary']} !important; text-align: center; margin: 0;
         }}
         .login-sub {{
             font-family: 'Inter', sans-serif; font-size: 0.88rem;
@@ -185,6 +185,58 @@ def _inject_login_styles(mode='light'):
         @media (prefers-reduced-motion: reduce) {{
             * {{ transition-duration: 0.01ms !important; }}
         }}
+
+        /* ── BorderBeam spring — login buttons ── */
+        @property --beam-angle {{
+          syntax: "<angle>";
+          inherits: false;
+          initial-value: 0deg;
+        }}
+        .beam-btn,
+        .st-key-login_btn .stButton > button,
+        .st-key-switch_to_signup .stButton > button {{
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
+        }}
+        .beam-btn::before,
+        .st-key-login_btn .stButton > button::before,
+        .st-key-switch_to_signup .stButton > button::before {{
+          content: "";
+          position: absolute;
+          inset: -2px;
+          border-radius: inherit;
+          padding: 2px;
+          background: conic-gradient(
+            from var(--beam-angle),
+            transparent 0%,
+            transparent 30%,
+            #EAB308 45%,
+            #FEF08A 50%,
+            #EAB308 55%,
+            transparent 70%,
+            transparent 100%
+          );
+          -webkit-mask:
+            linear-gradient(#fff 0 0) content-box,
+            linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          animation: beam-rotate 2800ms cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+          z-index: -1;
+        }}
+        @keyframes beam-rotate {{
+          0%   {{ --beam-angle: 0deg;   }}
+          60%  {{ --beam-angle: 230deg; }}
+          75%  {{ --beam-angle: 215deg; }}
+          88%  {{ --beam-angle: 365deg; }}
+          100% {{ --beam-angle: 360deg; }}
+        }}
+        @media (prefers-reduced-motion: reduce) {{
+          .beam-btn::before,
+          .st-key-login_btn .stButton > button::before,
+          .st-key-switch_to_signup .stButton > button::before {{ animation: none; }}
+        }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -220,7 +272,7 @@ def render_login_page():
             <div class="login-mark">📊</div>
         </div>
         <span class="login-eyebrow">YouTube Analytics</span>
-        <h1 class="login-title">Welcome back</h1>
+        <h1 class="login-title">Welcome</h1>
         <p class="login-sub">Sign in to your analytics dashboard</p>
         """, unsafe_allow_html=True)
 

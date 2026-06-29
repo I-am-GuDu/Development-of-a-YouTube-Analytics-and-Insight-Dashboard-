@@ -100,7 +100,7 @@ def inject_yt_studio_styles(mode='light'):
             color: var(--muted) !important;
             font-family: var(--font-body) !important;
         }}
-        h1, h2, h3, h4 {{ color: var(--ink); font-family: var(--font-display); }}
+        h1, h2, h3, h4 {{ color: var(--ink) !important; font-family: var(--font-display); }}
 
         /* ── Sidebar ─────────────────────────────────────── */
         [data-testid="stSidebar"] {{
