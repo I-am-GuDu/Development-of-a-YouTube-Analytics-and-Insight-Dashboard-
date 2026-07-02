@@ -1,0 +1,86 @@
+# =============================================================================
+# GitHub Actions Workflow: Keep Streamlit App Awake
+# =============================================================================
+# Streamlit Community Cloud puts free apps to sleep after 7 days of inactivity.
+# This workflow pings the app URL every 2 days to reset that inactivity timer,
+# ensuring the app stays awake indefinitely.
+#
+# Schedule: Every 2 days (well within the 7-day sleep window)
+# Retries:  Up to 3 attempts with 30-second delays between failures
+# =============================================================================
+
+name: Keep Streamlit App Awake
+
+on:
+  schedule:
+    # ┌───────────── minute (0-59)
+    # │  ┌────────── hour (0-23, UTC)
+    # │  │ ┌──────── day of month (1-31)
+    # │  │ │ ┌────── month (1-12)
+    # │  │ │ │ ┌──── day of week (0-6, Sun=0)
+    # │  │ │ │ │
+    # Runs at 08:00 UTC every 2 days — conservative yet safe against the 7-day limit
+    - cron: '0 8 */2 * *'
+
+  # Allows you to trigger the workflow manually from the GitHub Actions tab
+  # Useful for testing that everything works on the first setup
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    name: Ping Streamlit App
+    runs-on: ubuntu-latest
+    timeout-minutes: 5  # Hard limit so the job never hangs indefinitely
+
+    steps:
+      - name: Send keep-alive ping with retries
+        env:
+          APP_URL: https://tubeinsight.streamlit.app/
+        run: |
+          MAX_RETRIES=3
+          RETRY_DELAY=30  # seconds between retries
+
+          echo "🎯 Target: $APP_URL"
+          echo "🔁 Max retries: $MAX_RETRIES"
+          echo "⏳ Retry delay: ${RETRY_DELAY}s"
+          echo "-------------------------------------------"
+
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo ""
+            echo "📡 Attempt $attempt of $MAX_RETRIES..."
+
+            # -s  : Silent mode (no progress bar)
+            # -S  : Show errors even in silent mode
+            # -o  : Discard response body
+            # -w  : Print HTTP status code
+            # --connect-timeout : Max time for connection (seconds)
+            # --max-time        : Max total time for the request (seconds)
+            # -L  : Follow redirects (Streamlit may redirect)
+            HTTP_STATUS=$(curl -s -S -o /dev/null -w "%{http_code}" \
+              --connect-timeout 30 \
+              --max-time 120 \
+              -L \
+              "$APP_URL" 2>&1) || true
+
+            echo "   HTTP Status: $HTTP_STATUS"
+
+            if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+              echo ""
+              echo "✅ Success! App is awake (HTTP $HTTP_STATUS)"
+              echo "🕐 Pinged at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+              exit 0
+            else
+              echo "   ⚠️  Received HTTP $HTTP_STATUS"
+              if [ "$attempt" -lt "$MAX_RETRIES" ]; then
+                echo "   ⏳ Waiting ${RETRY_DELAY}s before retry..."
+                sleep $RETRY_DELAY
+              fi
+            fi
+          done
+
+          # All retries exhausted
+          echo ""
+          echo "❌ All $MAX_RETRIES attempts failed."
+          echo "   The app may be experiencing issues."
+          echo "   Last HTTP status: $HTTP_STATUS"
+          exit 1
