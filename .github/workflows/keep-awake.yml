@@ -19,8 +19,11 @@ on:
     # │  │ │ ┌────── month (1-12)
     # │  │ │ │ ┌──── day of week (0-6, Sun=0)
     # │  │ │ │ │
-    # Runs at 08:00 UTC every 2 days — conservative yet safe against the 7-day limit
-    - cron: '0 8 */2 * *'
+    # Runs at 08:37 UTC every 2 days — safely inside the 7-day sleep window.
+    # NOTE: the off-the-hour minute (:37) is deliberate. Thousands of jobs are
+    # queued at :00, so GitHub frequently delays — or under heavy load, drops —
+    # top-of-hour schedules. An odd minute gets picked up far more reliably.
+    - cron: '37 8 */2 * *'
 
   # Allows you to trigger the workflow manually from the GitHub Actions tab
   # Useful for testing that everything works on the first setup
@@ -56,15 +59,25 @@ jobs:
             # --connect-timeout : Max time for connection (seconds)
             # --max-time        : Max total time for the request (seconds)
             # -L  : Follow redirects (Streamlit may redirect)
+            # -A  : Browser-like User-Agent so the request registers as a
+            #       genuine visit (Streamlit's sleep timer keys off traffic)
+            # IMPORTANT: do NOT append "2>&1" here. Merging curl's stderr into
+            # the captured value would pollute HTTP_STATUS on a network error
+            # (e.g. "000curl: (6)...") and break the numeric check below.
+            # On any connection failure curl still prints "000" to stdout.
             HTTP_STATUS=$(curl -s -S -o /dev/null -w "%{http_code}" \
-              --connect-timeout 30 \
-              --max-time 120 \
+              --connect-timeout 20 \
+              --max-time 45 \
               -L \
-              "$APP_URL" 2>&1) || true
+              -A "Mozilla/5.0 (compatible; KeepAliveBot/1.0; +https://github.com)" \
+              "$APP_URL") || true
 
             echo "   HTTP Status: $HTTP_STATUS"
 
-            if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+            # Guard: only run numeric comparisons when we got clean digits,
+            # so a stray non-numeric value can never crash the step.
+            if echo "$HTTP_STATUS" | grep -qE '^[0-9]+$' \
+              && [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
               echo ""
               echo "✅ Success! App is awake (HTTP $HTTP_STATUS)"
               echo "🕐 Pinged at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
