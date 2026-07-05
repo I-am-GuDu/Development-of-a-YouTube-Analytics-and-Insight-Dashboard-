@@ -398,3 +398,66 @@ def growth_forecast_chart(forecast_data):
         hovermode='x unified'
     )
     return _apply_yt_studio_layout(fig)
+
+
+# ─── AI Comment Sentiment charts ─────────────────────────────────────────────
+
+def _sentiment_color_map(colors):
+    """Fixed positive/neutral/negative colors from theme tokens."""
+    return {
+        'positive': colors['trend_positive'],
+        'neutral': colors['text_secondary'],
+        'negative': colors['trend_negative'],
+    }
+
+
+def sentiment_donut(comments_df):
+    """Donut chart of positive / neutral / negative comment share."""
+    colors = get_theme_colors()
+
+    counts = comments_df['sentiment_label'].value_counts().reset_index()
+    counts.columns = ['sentiment', 'count']
+
+    fig = px.pie(
+        counts,
+        values='count',
+        names='sentiment',
+        title='Comment Sentiment Breakdown',
+        hole=0.55,
+        color='sentiment',
+        color_discrete_map=_sentiment_color_map(colors),
+    )
+    fig.update_traces(textposition='inside', textinfo='percent+label',
+                      marker=dict(line=dict(color=colors['bg_card'], width=2)))
+    return _apply_yt_studio_layout(fig)
+
+
+def sentiment_by_video_bar(comments_df, video_df, top_n=8):
+    """Grouped bar of sentiment counts per video (top N by comment volume)."""
+    colors = get_theme_colors()
+
+    # Count comments per (video, sentiment).
+    grouped = (comments_df.groupby(['video_id', 'sentiment_label'])
+               .size().reset_index(name='count'))
+
+    # Keep the videos with the most analyzed comments.
+    top_ids = (comments_df['video_id'].value_counts().head(top_n).index.tolist())
+    grouped = grouped[grouped['video_id'].isin(top_ids)]
+
+    # Map video_id -> short title for readable axis labels.
+    title_map = {}
+    if video_df is not None and not video_df.empty:
+        for _, v in video_df.iterrows():
+            title_map[v['video_id']] = (str(v['title'])[:35] + '…') if len(str(v['title'])) > 35 else str(v['title'])
+    grouped['video'] = grouped['video_id'].map(title_map).fillna(grouped['video_id'])
+
+    fig = px.bar(
+        grouped,
+        x='video', y='count', color='sentiment_label',
+        title='Sentiment by Video',
+        labels={'video': 'Video', 'count': 'Comments', 'sentiment_label': 'Sentiment'},
+        barmode='group',
+        color_discrete_map=_sentiment_color_map(colors),
+    )
+    fig.update_layout(xaxis_tickangle=-35)
+    return _apply_yt_studio_layout(fig)

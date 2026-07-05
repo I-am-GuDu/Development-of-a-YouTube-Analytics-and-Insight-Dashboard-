@@ -17,6 +17,9 @@ from dashboard import charts, filters
 from dashboard import theme as theme_tokens
 from auth import is_logged_in, logout, get_current_user
 from login_page import render_login_page
+from ai_analysis import insights as ai_insights
+from ai_analysis import sentiment as ai_sentiment
+from ai_analysis.client import is_configured as ai_configured
 
 load_dotenv()
 
@@ -656,7 +659,8 @@ def render_sidebar():
         page = st.radio(
             "Navigation",
             ["📊 Analytics", "🔍 Video Explorer",
-                "📈 Trend Analysis", "⚔️ Multi-Channel"],
+                "📈 Trend Analysis", "⚔️ Multi-Channel",
+                "🤖 AI Insights", "💬 Comment Sentiment"],
             label_visibility="collapsed"
         )
 
@@ -1374,6 +1378,197 @@ def page_multi_channel():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PAGE: AI INSIGHTS (LLM-generated analysis)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def page_ai_insights():
+    """Page: Claude reads the computed metrics and writes a performance report."""
+    render_page_header(
+        "AI Insights",
+        "AI insights",
+        "Plain-English analysis of your channel · Powered by Claude"
+    )
+
+    if 'video_df' not in st.session_state:
+        st.info("Please analyze a channel first from the **Analytics** page.")
+        return
+
+    if not ai_configured():
+        st.info("🔑 Add your **CLOUDFLARE_API_TOKEN** to `.env` (or Streamlit Cloud secrets) "
+                "to enable AI features. See the README for where to put it.")
+        return
+
+    video_df = st.session_state['video_df']
+    channel_data = st.session_state.get('channel_data', {})
+    engagement_metrics = st.session_state.get('engagement_metrics', {})
+
+    col_btn, _ = st.columns([1, 3])
+    with col_btn:
+        generate = st.button("✨  Generate AI insights", type="primary")
+
+    if generate:
+        # Best-effort forecast from the DB to enrich the prompt.
+        forecast = None
+        try:
+            storage_service = DataStorageService()
+            predictive = storage_service.get_predictive_analytics()
+            cid = channel_data.get('channel_id')
+            if cid:
+                forecast = predictive.forecast_channel_growth(cid, days_ahead=30)
+        except Exception:
+            forecast = None
+
+        with st.spinner("Claude is analyzing your channel..."):
+            result = ai_insights.generate_insights(
+                channel_data, engagement_metrics, video_df, forecast)
+        st.session_state['ai_insights_result'] = result
+
+    result = st.session_state.get('ai_insights_result')
+    if result:
+        if result.get('ok'):
+            st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
+            st.markdown(result['markdown'])
+            st.markdown('</div>', unsafe_allow_html=True)
+        elif result.get('error') == 'no_key':
+            st.info("🔑 Add your CLOUDFLARE_API_TOKEN to enable AI features.")
+        else:
+            st.error(f"Could not generate insights: {result.get('error')}")
+    else:
+        st.caption("Click **Generate AI insights** to get an LLM-written performance "
+                   "report and specific action tips based on your channel's numbers.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PAGE: COMMENT SENTIMENT (AI classification of viewer comments)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def page_comment_sentiment():
+    """Page: fetch viewer comments and classify sentiment with Claude."""
+    render_page_header(
+        "Comment Sentiment",
+        "Comment sentiment",
+        "AI reads your viewers' comments · Powered by Claude"
+    )
+
+    if 'video_df' not in st.session_state:
+        st.info("Please analyze a channel first from the **Analytics** page.")
+        return
+
+    if not ai_configured():
+        st.info("🔑 Add your **CLOUDFLARE_API_TOKEN** to `.env` (or Streamlit Cloud secrets) "
+                "to enable AI features. See the README for where to put it.")
+        return
+
+    video_df = st.session_state['video_df']
+    channel_data = st.session_state.get('channel_data', {})
+
+    col_a, _ = st.columns([1, 3])
+    with col_a:
+        max_videos = st.number_input(
+            "Top videos to scan", min_value=3, max_value=20, value=8, step=1)
+    st.caption("Fetches recent comments from your top videos by views, then classifies "
+               "each as positive / neutral / negative.")
+
+    if st.button("💬  Analyze comments", type="primary"):
+        try:
+            handler = YouTubeAPIHandler()
+        except Exception as e:
+            st.error(f"YouTube API not configured: {e}")
+            return
+
+        top_videos = video_df.nlargest(int(max_videos), 'view_count')
+        rows = list(top_videos.iterrows())
+        all_comments = []
+        progress = st.progress(0.0, text="Fetching comments...")
+        for i, (_, v) in enumerate(rows):
+            try:
+                raw = handler.get_video_comments(v['video_id'], max_results=30)
+                all_comments.extend(raw)
+            except Exception:
+                pass
+            progress.progress((i + 1) / max(len(rows), 1),
+                              text=f"Fetching comments... ({i + 1}/{len(rows)})")
+        progress.empty()
+
+        if not all_comments:
+            st.warning("No comments found (comments may be disabled on these videos).")
+            return
+
+        comments_df = DataProcessor().process_comment_data(all_comments)
+        if comments_df.empty:
+            st.warning("No usable comments to analyze.")
+            return
+
+        comments_df['channel_id'] = channel_data.get('channel_id')
+
+        with st.spinner(f"Claude is classifying {len(comments_df)} comments..."):
+            comments_df = ai_sentiment.analyze_comment_sentiment(comments_df)
+
+        # Best-effort persistence — charts render from memory regardless.
+        try:
+            storage_service = DataStorageService()
+            storage_service.save_comment_data(comments_df)
+        except Exception as e:
+            st.caption(f"(Saved to session only — database write skipped: {e})")
+
+        st.session_state['comments_df'] = comments_df
+
+    comments_df = st.session_state.get('comments_df')
+    if comments_df is None or comments_df.empty:
+        st.caption("Click **Analyze comments** to fetch and classify viewer comments.")
+        return
+
+    # ─── Summary metric cards ───
+    total = len(comments_df)
+    pos = int((comments_df['sentiment_label'] == 'positive').sum())
+    neg = int((comments_df['sentiment_label'] == 'negative').sum())
+    avg_score = float(comments_df['sentiment_score'].mean())
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        render_metric_card("Comments Analyzed", str(total))
+    with c2:
+        render_metric_card("Positive", f"{pos / total * 100:.0f}%",
+                           trend_text=f"{pos} comments")
+    with c3:
+        render_metric_card("Negative", f"{neg / total * 100:.0f}%",
+                           trend_text=f"{neg} comments")
+    with c4:
+        render_metric_card("Avg Sentiment", f"{avg_score:+.2f}",
+                           trend_text="-1 to +1 scale")
+
+    st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
+
+    # ─── Charts ───
+    col_l, col_r = st.columns(2)
+    with col_l:
+        st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
+        st.plotly_chart(charts.sentiment_donut(comments_df),
+                        use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col_r:
+        st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
+        st.plotly_chart(charts.sentiment_by_video_bar(comments_df, video_df),
+                        use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # ─── Top positive / negative comments ───
+    col_p, col_n = st.columns(2)
+    with col_p:
+        st.markdown('<div class="yt-chart-title">😊 Most positive comments</div>',
+                    unsafe_allow_html=True)
+        for _, row in comments_df.nlargest(5, 'sentiment_score').iterrows():
+            st.markdown(f"> {html.escape(str(row['text'])[:200])}  \n"
+                        f"`{row['sentiment_score']:+.2f}`")
+    with col_n:
+        st.markdown('<div class="yt-chart-title">😠 Most negative comments</div>',
+                    unsafe_allow_html=True)
+        for _, row in comments_df.nsmallest(5, 'sentiment_score').iterrows():
+            st.markdown(f"> {html.escape(str(row['text'])[:200])}  \n"
+                        f"`{row['sentiment_score']:+.2f}`")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # MAIN APP ENTRY POINT
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1441,6 +1636,10 @@ def main():
         page_trend_analysis()
     elif page == "⚔️ Multi-Channel":
         page_multi_channel()
+    elif page == "🤖 AI Insights":
+        page_ai_insights()
+    elif page == "💬 Comment Sentiment":
+        page_comment_sentiment()
 
 
 if __name__ == "__main__":

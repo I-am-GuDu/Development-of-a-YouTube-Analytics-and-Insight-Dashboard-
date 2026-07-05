@@ -178,3 +178,41 @@ class DataProcessor:
             'engagement_efficiency': (processed_videos_df['like_count'].sum() + processed_videos_df['comment_count'].sum()) / max(processed_videos_df['view_count'].sum(), 1) * 100
         }
         return metrics
+
+    @staticmethod
+    def validate_comment_data(comment: Dict) -> bool:
+        """Validate a single raw comment dict."""
+        required_fields = ['comment_id', 'video_id', 'text']
+        for field in required_fields:
+            if field not in comment:
+                return False
+        return True
+
+    @staticmethod
+    def process_comment_data(raw_comments: List[Dict]) -> pd.DataFrame:
+        """Convert raw comments into a clean DataFrame ready for sentiment analysis.
+
+        Columns: comment_id, video_id, author, text, like_count,
+        published_at (tz-naive datetime), crawl_timestamp.
+        """
+        validated = []
+        for comment in raw_comments:
+            if not DataProcessor.validate_comment_data(comment):
+                continue
+            validated.append({
+                'comment_id': comment['comment_id'],
+                'video_id': comment['video_id'],
+                'author': (comment.get('author') or '').strip(),
+                'text': DataProcessor.clean_description(comment.get('text', '')),
+                'like_count': max(0, int(comment.get('like_count', 0))),
+                'published_at': pd.to_datetime(
+                    comment.get('published_at'), errors='coerce').tz_localize(None)
+                if comment.get('published_at') else None,
+                'crawl_timestamp': datetime.now().isoformat()
+            })
+
+        df = pd.DataFrame(validated)
+        # Drop empty comments — nothing to classify.
+        if not df.empty:
+            df = df[df['text'].str.len() > 0].reset_index(drop=True)
+        return df

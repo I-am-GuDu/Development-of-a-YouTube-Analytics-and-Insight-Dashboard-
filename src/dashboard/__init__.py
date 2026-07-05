@@ -17,5 +17,7 @@ from .charts import (
     views_area_chart,
     traffic_sources_donut,
     impressions_funnel,
+    sentiment_donut,
+    sentiment_by_video_bar,
 )
 from .filters import video_search_filter, channel_search_sidebar
