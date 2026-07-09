@@ -143,13 +143,27 @@ def system_mode() -> str | None:
 def resolve_mode() -> str:
     """Resolve the active theme mode.
 
-    Priority: manual override from the corner toggle (session) →
-    OS/browser theme → 'light'. Default is auto-follow; the toggle only
-    sets a per-session override.
+    Priority: manual override (session) → URL query param (survives reload) →
+    OS/browser theme → 'light'.
+
+    The query param is the robust persistence layer: Streamlit sanitizes injected
+    <script>, so localStorage / cookies-from-JS can't run — but ?theme=dark rides
+    the URL and outlives a full page reload (and a re-login), which session_state
+    alone does not.
     """
     override = st.session_state.get('theme_override')
     if override in ('dark', 'light'):
         return override
+
+    try:
+        qp = st.query_params.get('theme')
+    except Exception:
+        qp = None
+    if qp in ('dark', 'light'):
+        # Promote to session so the rest of this run is stable.
+        st.session_state['theme_override'] = qp
+        return qp
+
     return system_mode() or 'light'
 
 
@@ -158,9 +172,18 @@ def resolve_mode() -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _toggle_theme():
-    """Callback: flip the per-session manual theme override."""
-    st.session_state['theme_override'] = (
-        'light' if resolve_mode() == 'dark' else 'dark')
+    """Callback: flip the manual theme override + persist it to the URL.
+
+    Writes both session_state (stable for this run) and the ?theme= query param
+    (survives full reloads). Charts re-theme because the ensuing rerun re-resolves
+    the mode server-side via get_tokens / charts.get_theme_colors.
+    """
+    new_mode = 'light' if resolve_mode() == 'dark' else 'dark'
+    st.session_state['theme_override'] = new_mode
+    try:
+        st.query_params['theme'] = new_mode
+    except Exception:
+        pass
 
 
 def inject_theme_toggle():

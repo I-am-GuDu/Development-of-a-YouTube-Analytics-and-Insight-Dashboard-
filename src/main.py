@@ -1382,11 +1382,11 @@ def page_multi_channel():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def page_ai_insights():
-    """Page: Claude reads the computed metrics and writes a performance report."""
+    """Page: AI reads the computed metrics and writes a performance report."""
     render_page_header(
         "AI Insights",
         "AI insights",
-        "Plain-English analysis of your channel · Powered by Claude"
+        "Plain-English analysis of your channel"
     )
 
     if 'video_df' not in st.session_state:
@@ -1418,7 +1418,7 @@ def page_ai_insights():
         except Exception:
             forecast = None
 
-        with st.spinner("Claude is analyzing your channel..."):
+        with st.spinner("Analyzing your channel..."):
             result = ai_insights.generate_insights(
                 channel_data, engagement_metrics, video_df, forecast)
         st.session_state['ai_insights_result'] = result
@@ -1443,11 +1443,11 @@ def page_ai_insights():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def page_comment_sentiment():
-    """Page: fetch viewer comments and classify sentiment with Claude."""
+    """Page: fetch viewer comments and classify sentiment with AI."""
     render_page_header(
         "Comment Sentiment",
         "Comment sentiment",
-        "AI reads your viewers' comments · Powered by Claude"
+        "AI reads your viewers' comments"
     )
 
     if 'video_df' not in st.session_state:
@@ -1501,7 +1501,7 @@ def page_comment_sentiment():
 
         comments_df['channel_id'] = channel_data.get('channel_id')
 
-        with st.spinner(f"Claude is classifying {len(comments_df)} comments..."):
+        with st.spinner(f"Classifying {len(comments_df)} comments..."):
             comments_df = ai_sentiment.analyze_comment_sentiment(comments_df)
 
         # Best-effort persistence — charts render from memory regardless.
