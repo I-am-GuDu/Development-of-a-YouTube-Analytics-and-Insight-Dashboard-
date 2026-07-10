@@ -195,6 +195,69 @@ class DataStorageService:
             logger.error("Error saving analytics summary: %s", e)
             raise e
         
+    def save_comment_data(self, comments_df: pd.DataFrame):
+        """Save comments + their AI sentiment labels to the database.
+
+        Expects a DataFrame with columns: comment_id, video_id, channel_id,
+        author, text, like_count, published_at, sentiment_label, sentiment_score.
+        Upserts on comment_id.
+        """
+        try:
+            from sqlalchemy import text
+            import numpy as np
+
+            def convert_numpy_types(value):
+                if value is None or pd.isna(value):
+                    return None
+                if isinstance(value, (np.integer, np.floating)):
+                    return value.item()
+                if isinstance(value, np.ndarray):
+                    return value.tolist()
+                return value
+
+            comment_records = comments_df.to_dict('records')
+
+            query = text("""
+                INSERT INTO video_comments (
+                    comment_id, video_id, channel_id, author, text,
+                    like_count, published_at, sentiment_label, sentiment_score, crawl_timestamp
+                ) VALUES (
+                    :comment_id, :video_id, :channel_id, :author, :text,
+                    :like_count, :published_at, :sentiment_label, :sentiment_score, :crawl_timestamp
+                )
+                ON CONFLICT (comment_id) DO UPDATE SET
+                    author = EXCLUDED.author,
+                    text = EXCLUDED.text,
+                    like_count = EXCLUDED.like_count,
+                    published_at = EXCLUDED.published_at,
+                    sentiment_label = EXCLUDED.sentiment_label,
+                    sentiment_score = EXCLUDED.sentiment_score,
+                    crawl_timestamp = EXCLUDED.crawl_timestamp
+            """)
+
+            for record in comment_records:
+                score = convert_numpy_types(record.get('sentiment_score'))
+                self.session.execute(query, {
+                    'comment_id': record['comment_id'],
+                    'video_id': record.get('video_id'),
+                    'channel_id': record.get('channel_id'),
+                    'author': record.get('author'),
+                    'text': record.get('text'),
+                    'like_count': int(convert_numpy_types(record.get('like_count', 0)) or 0),
+                    'published_at': convert_numpy_types(record.get('published_at')),
+                    'sentiment_label': record.get('sentiment_label'),
+                    'sentiment_score': float(score) if score is not None else None,
+                    'crawl_timestamp': record.get('crawl_timestamp', datetime.now())
+                })
+
+            self.session.commit()
+            logger.info("Saved %d comments to database", len(comment_records))
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            logger.error("Error saving comment data: %s", e)
+            raise e
+
     def get_predictive_analytics(self):
         """Get predictive analytics object for forecasting and recommendations"""
         from .predictive_analytics import PredictiveAnalytics

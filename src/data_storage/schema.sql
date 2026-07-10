@@ -59,7 +59,23 @@ CREATE TABLE IF NOT EXISTS analytics_summary (
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create video_comments table (AI sentiment analysis)
+CREATE TABLE IF NOT EXISTS video_comments (
+    comment_id VARCHAR(64) PRIMARY KEY,
+    video_id VARCHAR(50) REFERENCES videos(video_id) ON DELETE CASCADE,
+    channel_id VARCHAR(50) REFERENCES channels(channel_id) ON DELETE CASCADE,
+    author VARCHAR(255),
+    text TEXT,
+    like_count BIGINT,
+    published_at TIMESTAMP,
+    sentiment_label VARCHAR(20),
+    sentiment_score DECIMAL(10,4),
+    crawl_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_videos_channel_id ON videos(channel_id);
 CREATE INDEX IF NOT EXISTS idx_videos_publish_date ON videos(publish_date);
 CREATE INDEX IF NOT EXISTS idx_videos_engagement_rate ON videos(engagement_rate DESC);
+CREATE INDEX IF NOT EXISTS idx_comments_video_id ON video_comments(video_id);
+CREATE INDEX IF NOT EXISTS idx_comments_channel_id ON video_comments(channel_id);

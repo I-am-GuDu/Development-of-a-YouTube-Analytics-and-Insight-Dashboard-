@@ -14,9 +14,12 @@ from youtube_data_collection.data_processor import DataProcessor
 from datetime import datetime, timedelta
 from data_storage.storage_service import DataStorageService
 from dashboard import charts, filters
-from dashboard.effects_3d import inject_3d_effects, inject_3d_javascript, render_floating_orbs, render_hero_section
+from dashboard import theme as theme_tokens
 from auth import is_logged_in, logout, get_current_user
 from login_page import render_login_page
+from ai_analysis import insights as ai_insights
+from ai_analysis import sentiment as ai_sentiment
+from ai_analysis.client import is_configured as ai_configured
 
 load_dotenv()
 
@@ -36,541 +39,439 @@ CATEGORY_KEYWORDS = {
 # YOUTUBE STUDIO CSS THEME
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def inject_yt_studio_styles(theme='dark'):
-    """Apply YouTube Studio theme CSS across the Streamlit app."""
-    is_dark = theme == 'dark'
+def inject_yt_studio_styles(mode='light'):
+    """Inject the full design system. Single token source = theme.py.
 
-    # Theme-dependent tokens
-    bg_page = '#030712' if is_dark else '#FAF5FF'
-    bg_card = '#272727' if is_dark else '#ffffff'
-    bg_card_hover = '#333333' if is_dark else '#f0f0f0'
-    bg_sidebar = '#202020' if is_dark else '#FCE7F3'
-    border_color = 'rgba(255,255,255,0.1)' if is_dark else 'rgba(0,0,0,0.1)'
-    text_primary = '#FFFFFF' if is_dark else '#0f0f0f'
-    text_secondary = '#AAAAAA' if is_dark else '#606060'
-    text_body = '#f1f1f1' if is_dark else '#0f0f0f'
-    sidebar_hover = 'rgba(255,255,255,0.08)' if is_dark else 'rgba(0,0,0,0.05)'
-    input_bg = '#272727' if is_dark else '#ffffff'
-    input_border = 'rgba(255,255,255,0.15)' if is_dark else 'rgba(0,0,0,0.15)'
-    scrollbar_track = '#0f0f0f' if is_dark else '#f9f9f9'
-    scrollbar_thumb = '#555' if is_dark else '#ccc'
-    metric_delta_up = '#2BA640'
-    metric_delta_down = '#FF4444'
-    accent_blue = '#3EA6FF'
-    grid_color = 'rgba(255,255,255,0.05)' if is_dark else 'rgba(0,0,0,0.06)'
-    divider_color = 'rgba(255,255,255,0.08)' if is_dark else 'rgba(0,0,0,0.08)'
-    traffic_bar_bg = 'rgba(255,255,255,0.08)' if is_dark else 'rgba(0,0,0,0.06)'
-    btn_bg = '#272727' if is_dark else '#f0f0f0'
-    btn_hover_bg = '#333333' if is_dark else '#e0e0e0'
-    btn_primary_bg = '#3EA6FF'
-    btn_primary_text = '#0f0f0f'
-    toggle_bg = 'rgba(255,255,255,0.08)' if is_dark else 'rgba(0,0,0,0.05)'
-    sidebar_ctrl_bg = '#272727' if is_dark else '#1f1f1f'
-    sidebar_ctrl_hover_bg = '#3a3a3a' if is_dark else '#111111'
-    sidebar_ctrl_text = '#f1f1f1' if is_dark else '#ffffff'
-    sidebar_ctrl_border = 'rgba(255,255,255,0.2)' if is_dark else 'rgba(0,0,0,0.4)'
-    light_mode_text_overrides = ""
-
-    if not is_dark:
-        light_mode_text_overrides = f"""
-        /* ── Light Mode Text Readability Guard ──────────── */
-        [data-testid="stMarkdownContainer"] p,
-        [data-testid="stMarkdownContainer"] li,
-        [data-testid="stCaptionContainer"],
-        [data-testid="stMetricLabel"],
-        [data-testid="stMetricValue"],
-        .stText,
-        .stSelectbox label,
-        .stMultiSelect label,
-        .stDateInput label,
-        .stTextInput label,
-        .stNumberInput label,
-        .stTextArea label,
-        .stRadio > label,
-        .stCheckbox > label,
-        .stToggle > label {{
-            color: {text_body} !important;
-        }}
-
-        .yt-chart-subtitle,
-        .yt-date-range,
-        .yt-metric-label,
-        .yt-video-stat-label {{
-            color: {text_secondary} !important;
-        }}
-        """
+    Premium violet "creator console" identity. Space Grotesk for display +
+    tabular metric numerals, Inter for body/UI.
+    """
+    t = theme_tokens.get_tokens(mode)
 
     st.markdown(f"""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
 
-        /* ── Smooth Theme Transitions ─────────────────────── */
+        :root {{
+            --bg-page: {t['bg_page']};
+            --bg-card: {t['bg_card']};
+            --bg-card-hover: {t['bg_card_hover']};
+            --bg-sidebar: {t['bg_sidebar']};
+            --bg-subtle: {t['bg_subtle']};
+            --border: {t['border']};
+            --border-strong: {t['border_strong']};
+            --divider: {t['divider']};
+            --ink: {t['text_primary']};
+            --muted: {t['text_secondary']};
+            --body: {t['text_body']};
+            --faint: {t['text_faint']};
+            --brand: {t['brand']};
+            --brand-hover: {t['brand_hover']};
+            --brand-soft: {t['brand_soft']};
+            --brand-on: {t['brand_on']};
+            --focus-ring: {t['focus_ring']};
+            --pos: {t['pos']};
+            --neg: {t['neg']};
+            --input-bg: {t['input_bg']};
+            --input-border: {t['input_border']};
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }}
+
+        /* ── Page shell ──────────────────────────────────── */
+        .stApp {{
+            background: var(--bg-page) !important;
+            color: var(--body) !important;
+            font-family: var(--font-body);
+        }}
+        /* Native Streamlit header: transparent so no leftover dark bar
+           collides with the fixed theme toggle. Token-independent — page
+           bg shows through, reads correctly in both modes. */
+        [data-testid="stHeader"], .stApp > header {{
+            background: transparent !important;
+        }}
         .stApp, [data-testid="stSidebar"], .yt-metric-card, .yt-chart-card,
         .yt-video-card, [data-testid="stMetric"], .stButton > button,
-        .stTextInput input, .sidebar-channel-info, .yt-theme-toggle {{
-            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+        .stTextInput input {{
+            transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
         }}
-
-        /* ── Page Background ─────────────────────────────── */
-        .stApp {{
-            background: {bg_page} !important;
-            color: {text_body} !important;
-            font-family: 'Roboto', sans-serif;
-        }}
-        {light_mode_text_overrides}
         .block-container {{
-            padding-top: 1.2rem !important;
-            padding-bottom: 2rem !important;
-            max-width: 1300px;
+            padding-top: 1.6rem !important;
+            padding-bottom: 2.5rem !important;
+            max-width: 1280px;
         }}
+        [data-testid="stMarkdownContainer"] p,
+        [data-testid="stMarkdownContainer"] li {{ color: var(--body); }}
+        [data-testid="stCaptionContainer"], .stCaption,
+        [data-testid="stWidgetLabel"] label,
+        .stSelectbox label, .stMultiSelect label, .stDateInput label,
+        .stTextInput label, .stNumberInput label, .stTextArea label,
+        .stRadio > label, .stSlider label {{
+            color: var(--muted) !important;
+            font-family: var(--font-body) !important;
+        }}
+        h1, h2, h3, h4 {{ color: var(--ink) !important; font-family: var(--font-display); }}
 
         /* ── Sidebar ─────────────────────────────────────── */
         [data-testid="stSidebar"] {{
-            background: {bg_sidebar} !important;
-            border-right: 1px solid {border_color};
-            width: 240px !important;
+            background: var(--bg-sidebar) !important;
+            border-right: 1px solid var(--border);
+            width: 248px !important;
         }}
         [data-testid="stSidebar"] .stMarkdown p,
         [data-testid="stSidebar"] .stMarkdown h1,
         [data-testid="stSidebar"] .stMarkdown h2,
         [data-testid="stSidebar"] .stMarkdown h3 {{
-            color: {text_primary} !important;
-            font-family: 'Roboto', sans-serif !important;
+            color: var(--ink) !important;
+            font-family: var(--font-body) !important;
         }}
         [data-testid="stSidebar"] .stRadio label {{
-            color: {text_secondary} !important;
-            font-family: 'Roboto', sans-serif !important;
+            color: var(--muted) !important;
+            font-family: var(--font-body) !important;
             font-size: 14px !important;
-            font-weight: 400 !important;
-            padding: 8px 16px !important;
+            font-weight: 500 !important;
+            padding: 9px 14px !important;
             border-radius: 10px;
-            transition: all 0.2s ease;
+            transition: all 0.18s ease;
         }}
         [data-testid="stSidebar"] .stRadio label:hover {{
-            background: {sidebar_hover} !important;
-            color: {text_primary} !important;
+            background: var(--brand-soft) !important;
+            color: var(--ink) !important;
         }}
-        [data-testid="stSidebar"] .stRadio label[data-checked="true"],
-        [data-testid="stSidebar"] [aria-checked="true"] + label {{
-            color: {accent_blue} !important;
-            font-weight: 500 !important;
+        [data-testid="stSidebar"] [aria-checked="true"] + div,
+        [data-testid="stSidebar"] .stRadio [aria-checked="true"] ~ div {{
+            color: var(--brand) !important;
         }}
 
-        /* ── Section Headings ────────────────────────────── */
+        /* ── Page header ─────────────────────────────────── */
+        .page-head {{ margin: 0 0 1.4rem; }}
+        .page-eyebrow {{
+            display: inline-flex; align-items: center; gap: 8px;
+            font-family: var(--font-body);
+            font-size: 0.7rem; font-weight: 600; letter-spacing: 0.14em;
+            text-transform: uppercase; color: var(--brand);
+            margin-bottom: 8px;
+        }}
+        .page-eyebrow::before {{
+            content: ''; width: 22px; height: 2px; border-radius: 2px;
+            background: var(--brand);
+        }}
+        .page-title {{
+            font-family: var(--font-display);
+            font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em;
+            color: var(--ink); margin: 0; line-height: 1.1;
+        }}
+        .page-subtitle {{
+            font-family: var(--font-body);
+            font-size: 0.92rem; color: var(--muted); margin: 6px 0 0;
+        }}
         .yt-page-title {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: {text_primary};
-            margin: 0;
-            padding: 0;
-        }}
-        .yt-header-row {{
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 0.8rem;
-        }}
-        .yt-date-range {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.8rem;
-            color: {text_secondary};
-            text-align: right;
-        }}
-        .yt-date-range strong {{
-            display: block;
-            color: {text_primary};
-            font-size: 0.85rem;
-            font-weight: 500;
+            font-family: var(--font-display);
+            font-size: 1.5rem; font-weight: 700; color: var(--ink);
+            margin: 0; padding: 0;
         }}
 
-        /* ── Tab Bar ─────────────────────────────────────── */
+        /* ── Tab bar ──────────────────────────────────────── */
         .stTabs [data-baseweb="tab-list"] {{
             background: transparent !important;
             border: none !important;
-            border-bottom: 1px solid {border_color} !important;
+            border-bottom: 1px solid var(--border) !important;
             border-radius: 0 !important;
-            padding: 0 !important;
-            gap: 0 !important;
+            padding: 0 !important; gap: 4px !important;
         }}
         .stTabs [data-baseweb="tab"] {{
             border-radius: 0 !important;
             background: transparent !important;
-            color: {text_secondary} !important;
-            font-family: 'Roboto', sans-serif !important;
-            font-size: 14px !important;
-            font-weight: 500 !important;
-            padding: 12px 24px !important;
-            border-bottom: 3px solid transparent !important;
-            transition: all 0.2s ease;
+            color: var(--muted) !important;
+            font-family: var(--font-body) !important;
+            font-size: 14px !important; font-weight: 600 !important;
+            padding: 12px 20px !important;
+            border-bottom: 2.5px solid transparent !important;
+            transition: all 0.18s ease;
         }}
-        .stTabs [data-baseweb="tab"]:hover {{
-            color: {text_primary} !important;
-        }}
+        .stTabs [data-baseweb="tab"]:hover {{ color: var(--ink) !important; }}
         .stTabs [aria-selected="true"] {{
             background: transparent !important;
-            color: {accent_blue} !important;
-            border-bottom: 3px solid {accent_blue} !important;
+            color: var(--brand) !important;
+            border-bottom: 2.5px solid var(--brand) !important;
         }}
         .stTabs [data-baseweb="tab-highlight"],
-        .stTabs [data-baseweb="tab-border"] {{
-            display: none !important;
-        }}
+        .stTabs [data-baseweb="tab-border"] {{ display: none !important; }}
 
-        /* ── Metric Cards ────────────────────────────────── */
+        /* ── Metric cards ─────────────────────────────────── */
         .yt-metric-card {{
-            background: {bg_card};
-            border: 1px solid {border_color};
-            border-radius: 12px;
-            padding: 20px 24px;
-            transition: all 0.25s ease;
-            min-height: 100px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px 22px;
+            min-height: 104px;
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.23,1,0.32,1);
+        }}
+        .yt-metric-card::before {{
+            content: ''; position: absolute; left: 0; top: 16px; bottom: 16px;
+            width: 3px; border-radius: 0 3px 3px 0;
+            background: var(--brand); opacity: 0;
+            transition: opacity 0.2s ease;
         }}
         .yt-metric-card:hover {{
-            background: {bg_card_hover};
-            border-color: {border_color};
+            border-color: var(--border-strong);
             transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            box-shadow: 0 10px 30px {('rgba(0,0,0,0.35)' if mode=='dark' else 'rgba(79,70,229,0.10)')};
         }}
+        .yt-metric-card:hover::before {{ opacity: 1; }}
         .yt-metric-label {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.78rem;
-            font-weight: 400;
-            color: {text_secondary};
-            margin-bottom: 6px;
-            text-transform: none;
+            font-family: var(--font-body);
+            font-size: 0.76rem; font-weight: 500;
+            color: var(--muted); margin-bottom: 8px;
         }}
         .yt-metric-value {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: {text_primary};
-            line-height: 1.2;
+            font-family: var(--font-display);
+            font-size: 1.9rem; font-weight: 600;
+            color: var(--ink); line-height: 1.1;
+            font-feature-settings: 'tnum' 1; font-variant-numeric: tabular-nums;
+            letter-spacing: -0.01em;
         }}
         .yt-metric-trend {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.78rem;
-            font-weight: 500;
-            margin-top: 6px;
+            font-family: var(--font-body);
+            font-size: 0.76rem; font-weight: 600; margin-top: 8px;
         }}
-        .yt-trend-up {{ color: {metric_delta_up}; }}
-        .yt-trend-down {{ color: {metric_delta_down}; }}
-        .yt-trend-neutral {{ color: {text_secondary}; }}
+        .yt-trend-up {{ color: var(--pos); }}
+        .yt-trend-down {{ color: var(--neg); }}
+        .yt-trend-neutral {{ color: var(--muted); font-weight: 500; }}
 
-        /* ── Chart Cards ─────────────────────────────────── */
+        /* ── Chart cards ──────────────────────────────────── */
         .yt-chart-card {{
-            background: {bg_card};
-            border: 1px solid {border_color};
-            border-radius: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
             padding: 20px;
             margin-bottom: 1rem;
-            transition: all 0.25s ease;
-        }}
-        .yt-chart-card:hover {{
-            border-color: {border_color};
         }}
         .yt-chart-title {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 1rem;
-            font-weight: 600;
-            color: {text_primary};
-            margin-bottom: 4px;
+            font-family: var(--font-display);
+            font-size: 1.02rem; font-weight: 600;
+            color: var(--ink); margin-bottom: 4px;
         }}
         .yt-chart-subtitle {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.78rem;
-            color: {text_secondary};
-            margin-bottom: 12px;
+            font-family: var(--font-body);
+            font-size: 0.78rem; color: var(--muted); margin-bottom: 12px;
         }}
 
-        /* ── See More Link ───────────────────────────────── */
-        .yt-see-more {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: {accent_blue};
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            margin-top: 8px;
-            display: inline-block;
-        }}
-        .yt-see-more:hover {{
-            color: #69b8ff;
-        }}
-
-        /* ── Streamlit Overrides ─────────────────────────── */
+        /* ── Native st.metric ─────────────────────────────── */
         [data-testid="stMetric"] {{
-            background: {bg_card};
-            border: 1px solid {border_color};
-            border-radius: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
             padding: 16px 20px;
-            transition: all 0.25s ease;
         }}
-        [data-testid="stMetric"]:hover {{
-            background: {bg_card_hover};
-            border-color: {border_color};
-            transform: translateY(-1px);
-        }}
+        [data-testid="stMetric"]:hover {{ border-color: var(--border-strong); }}
         [data-testid="stMetricLabel"] {{
-            color: {text_secondary} !important;
-            font-weight: 400 !important;
-            font-family: 'Roboto', sans-serif !important;
-            font-size: 0.78rem !important;
+            color: var(--muted) !important; font-weight: 500 !important;
+            font-family: var(--font-body) !important; font-size: 0.76rem !important;
         }}
         [data-testid="stMetricValue"] {{
-            color: {text_primary} !important;
-            font-weight: 700 !important;
-            font-family: 'Roboto', sans-serif !important;
+            color: var(--ink) !important; font-weight: 600 !important;
+            font-family: var(--font-display) !important;
+            font-variant-numeric: tabular-nums;
         }}
-        [data-testid="stMetricDelta"] {{
-            font-family: 'Roboto', sans-serif !important;
-        }}
+        [data-testid="stMetricDelta"] {{ font-family: var(--font-body) !important; }}
 
+        /* ── Buttons ──────────────────────────────────────── */
         .stButton > button {{
-            background: {btn_bg} !important;
-            border: 1px solid {input_border} !important;
-            border-radius: 20px !important;
-            color: {accent_blue} !important;
-            font-family: 'Roboto', sans-serif !important;
-            font-weight: 500 !important;
-            font-size: 14px !important;
-            padding: 8px 24px !important;
-            transition: all 0.2s ease;
+            background: transparent !important;
+            border: 1px solid var(--input-border) !important;
+            border-radius: 10px !important;
+            color: var(--brand) !important;
+            font-family: var(--font-body) !important;
+            font-weight: 600 !important; font-size: 14px !important;
+            padding: 9px 22px !important;
+            transition: all 0.18s ease;
         }}
         .stButton > button:hover {{
-            background: {btn_hover_bg} !important;
-            border-color: {accent_blue} !important;
+            background: var(--brand-soft) !important;
+            border-color: var(--brand) !important;
         }}
         .stButton > button[kind="primary"] {{
-            background: {btn_primary_bg} !important;
-            color: {btn_primary_text} !important;
-            border-color: {btn_primary_bg} !important;
+            background: var(--brand) !important;
+            color: var(--brand-on) !important;
+            border-color: var(--brand) !important;
+            box-shadow: 0 4px 14px var(--focus-ring) !important;
         }}
         .stButton > button[kind="primary"]:hover {{
-            background: #69b8ff !important;
+            background: var(--brand-hover) !important;
+            border-color: var(--brand-hover) !important;
+            transform: translateY(-1px);
         }}
 
-        .stTextInput input, .stSelectbox select, .stNumberInput input {{
-            background: {input_bg} !important;
-            border: 1px solid {input_border} !important;
-            border-radius: 8px !important;
-            color: {text_body} !important;
-            font-family: 'Roboto', sans-serif !important;
+        /* ── Inputs ───────────────────────────────────────── */
+        .stTextInput input, .stNumberInput input, .stTextArea textarea {{
+            background: var(--input-bg) !important;
+            border: 1px solid var(--input-border) !important;
+            border-radius: 10px !important;
+            color: var(--body) !important;
+            font-family: var(--font-body) !important;
         }}
-        .stTextInput input:focus {{
-            border-color: {accent_blue} !important;
-            box-shadow: 0 0 0 1px {accent_blue} !important;
+        .stTextInput input:focus, .stNumberInput input:focus,
+        .stTextArea textarea:focus {{
+            border-color: var(--brand) !important;
+            box-shadow: 0 0 0 3px var(--focus-ring) !important;
+        }}
+        [data-baseweb="select"] > div {{
+            background: var(--input-bg) !important;
+            border-color: var(--input-border) !important;
+            border-radius: 10px !important;
+        }}
+        /* Select selected-value + option-list text follow tokens (both modes) */
+        [data-baseweb="select"] div {{ color: var(--body) !important; }}
+        [data-baseweb="popover"] [role="option"] {{
+            background: var(--bg-card) !important;
+            color: var(--body) !important;
+        }}
+        [data-baseweb="popover"] [role="option"]:hover {{
+            background: var(--brand-soft) !important;
+        }}
+        /* Placeholder text — token-driven so it is visible in light mode */
+        .stTextInput input::placeholder,
+        .stNumberInput input::placeholder,
+        .stTextArea textarea::placeholder {{
+            color: var(--faint) !important;
+            opacity: 1;
+        }}
+        /* Date inputs: field + calendar popover follow tokens (fix dark-default
+           chrome bleeding into light mode) */
+        .stDateInput [data-baseweb="input"],
+        .stDateInput input {{
+            background: var(--input-bg) !important;
+            color: var(--body) !important;
+            border-color: var(--input-border) !important;
+        }}
+        [data-baseweb="calendar"] {{
+            background: var(--bg-card) !important;
+            color: var(--body) !important;
         }}
 
         [data-testid="stDataFrame"], [data-testid="stTable"] {{
-            border: 1px solid {border_color};
-            border-radius: 12px;
-            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 12px; overflow: hidden;
         }}
+        .stAlert {{ border-radius: 12px; border: 1px solid var(--border); }}
 
-        .stAlert {{
-            border-radius: 12px;
-            border: 1px solid {border_color};
-        }}
-
-        /* ── Sidebar Channel Info ────────────────────────── */
-        .sidebar-channel-info {{
-            text-align: center;
-            padding: 16px 12px;
-            margin-bottom: 12px;
-        }}
+        /* ── Sidebar channel info ─────────────────────────── */
+        .sidebar-channel-info {{ text-align: center; padding: 14px 12px; margin-bottom: 8px; }}
         .sidebar-channel-avatar {{
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            margin: 0 auto 10px;
-            display: block;
-            border: 2px solid {border_color};
+            width: 76px; height: 76px; border-radius: 50%;
+            margin: 0 auto 10px; display: block;
+            border: 2px solid var(--brand-soft);
         }}
         .sidebar-channel-name {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: {text_primary};
-            margin-top: 4px;
+            font-family: var(--font-display); font-size: 0.92rem; font-weight: 600;
+            color: var(--ink); margin-top: 4px;
         }}
         .sidebar-channel-label {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.72rem;
-            color: {text_secondary};
-            margin-top: 2px;
+            font-family: var(--font-body); font-size: 0.7rem;
+            color: var(--muted); margin-top: 2px;
+            text-transform: uppercase; letter-spacing: 0.08em;
         }}
 
-        /* ── Top Video Cards ─────────────────────────────── */
+        /* ── Top video cards ──────────────────────────────── */
         .yt-video-card {{
-            background: {bg_card};
-            border: 1px solid {border_color};
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 16px 20px;
-            margin-bottom: 8px;
-            transition: all 0.2s ease;
+            padding: 15px 18px; margin-bottom: 8px;
+            transition: all 0.18s ease;
         }}
         .yt-video-card:hover {{
-            background: {bg_card_hover};
-            border-color: {border_color};
+            border-color: var(--border-strong);
+            background: var(--bg-card-hover);
         }}
         .yt-video-title {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: {text_primary};
-            margin-bottom: 8px;
-            line-height: 1.3;
+            font-family: var(--font-body); font-size: 0.9rem; font-weight: 600;
+            color: var(--ink); margin-bottom: 8px; line-height: 1.35;
         }}
-        .yt-video-stats {{
-            display: flex;
-            gap: 24px;
-            flex-wrap: wrap;
-        }}
-        .yt-video-stat {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.78rem;
-        }}
-        .yt-video-stat-label {{
-            color: {text_secondary};
-        }}
+        .yt-video-stats {{ display: flex; gap: 22px; flex-wrap: wrap; }}
+        .yt-video-stat {{ font-family: var(--font-body); font-size: 0.78rem; }}
+        .yt-video-stat-label {{ color: var(--muted); }}
         .yt-video-stat-value {{
-            color: {text_primary};
-            font-weight: 600;
-            margin-left: 4px;
+            color: var(--ink); font-weight: 600; margin-left: 4px;
+            font-variant-numeric: tabular-nums;
         }}
 
-        /* ── Progress bars for traffic sources ───────────── */
-        .yt-traffic-row {{
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            gap: 12px;
-        }}
+        /* ── Category mix bars ────────────────────────────── */
+        .yt-traffic-row {{ display: flex; align-items: center; margin-bottom: 10px; gap: 12px; }}
         .yt-traffic-label {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.8rem;
-            color: {text_secondary};
-            min-width: 130px;
+            font-family: var(--font-body); font-size: 0.8rem;
+            color: var(--muted); min-width: 130px;
         }}
         .yt-traffic-bar-bg {{
-            flex: 1;
-            height: 6px;
-            background: {traffic_bar_bg};
-            border-radius: 3px;
-            overflow: hidden;
+            flex: 1; height: 7px; background: var(--bg-subtle);
+            border-radius: 4px; overflow: hidden;
         }}
-        .yt-traffic-bar-fill {{
-            height: 100%;
-            border-radius: 3px;
-            transition: width 0.6s ease;
-        }}
+        .yt-traffic-bar-fill {{ height: 100%; border-radius: 4px; transition: width 0.6s ease; }}
         .yt-traffic-pct {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.8rem;
-            color: {text_primary};
-            font-weight: 500;
-            min-width: 50px;
-            text-align: right;
+            font-family: var(--font-display); font-size: 0.8rem;
+            color: var(--ink); font-weight: 500; min-width: 48px; text-align: right;
+            font-variant-numeric: tabular-nums;
         }}
 
-        /* ── Divider ─────────────────────────────────────── */
-        .yt-divider {{
-            border: none;
-            border-top: 1px solid {divider_color};
-            margin: 16px 0;
-        }}
+        .yt-divider {{ border: none; border-top: 1px solid var(--divider); margin: 16px 0; }}
 
-        /* ── Theme Toggle ────────────────────────────────── */
-        .yt-theme-toggle {{
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            background: {toggle_bg};
-            border-radius: 10px;
-            margin-top: 0;
-        }}
-        .yt-theme-toggle-label {{
-            font-family: 'Roboto', sans-serif;
-            font-size: 0.78rem;
-            color: {text_secondary};
-        }}
+        /* ── Scrollbar ────────────────────────────────────── */
+        ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
+        ::-webkit-scrollbar-track {{ background: {t['scrollbar_track']}; }}
+        ::-webkit-scrollbar-thumb {{ background: {t['scrollbar_thumb']}; border-radius: 4px; }}
 
-        /* ── Toggle Switch Styling ───────────────────────── */
-        [data-testid="stSidebar"] .stToggle > label {{
-            display: none !important;
-        }}
-        [data-testid="stSidebar"] .stToggle {{
-            margin-top: 0 !important;
-            display: flex;
-            justify-content: flex-end;
-        }}
-        [data-testid="stSidebar"] .stToggle > div {{
-            margin-top: 0 !important;
-        }}
-        [data-testid="stSidebar"] [data-baseweb="checkbox"] > div {{
-            background: {toggle_bg} !important;
-            border-color: {border_color} !important;
-        }}
-        [data-testid="stSidebar"] [data-baseweb="checkbox"] > div[aria-checked="true"] {{
-            background: {accent_blue} !important;
-            border-color: {accent_blue} !important;
-        }}
-
-        /* ── Scrollbar ───────────────────────────────────── */
-        ::-webkit-scrollbar {{ width: 6px; }}
-        ::-webkit-scrollbar-track {{ background: {scrollbar_track}; }}
-        ::-webkit-scrollbar-thumb {{ background: {scrollbar_thumb}; border-radius: 3px; }}
-        ::-webkit-scrollbar-thumb:hover {{ background: #777; }}
-
-        /* ── Hide Streamlit branding ─────────────────────── */
         #MainMenu {{ visibility: hidden; }}
         footer {{ visibility: hidden; }}
 
-        /* ── Sidebar Buttons ─────────────────────────────── */
+        /* ── Sidebar buttons ──────────────────────────────── */
         [data-testid="stSidebar"] .stButton > button {{
-            background: {toggle_bg} !important;
-            border: 1px solid {border_color} !important;
-            color: {text_secondary} !important;
-            width: 100%;
+            background: transparent !important;
+            border: 1px solid var(--border) !important;
+            color: var(--muted) !important; width: 100%;
         }}
         [data-testid="stSidebar"] .stButton > button:hover {{
-            background: {sidebar_hover} !important;
-            color: {text_primary} !important;
-            border-color: {accent_blue} !important;
+            background: var(--brand-soft) !important;
+            color: var(--brand) !important;
+            border-color: var(--brand) !important;
         }}
 
-        /* ── Sidebar Collapse/Expand Control ───────────── */
+        /* ── Sidebar collapse control ─────────────────────── */
         [data-testid="stSidebarCollapseButton"] button,
-        [data-testid="collapsedControl"] button,
-        button[aria-label="Close sidebar"],
-        button[aria-label="Open sidebar"] {{
-            background: {sidebar_ctrl_bg} !important;
-            color: {sidebar_ctrl_text} !important;
-            border: 1px solid {sidebar_ctrl_border} !important;
+        [data-testid="collapsedControl"] button {{
+            background: var(--bg-card) !important;
+            color: var(--ink) !important;
+            border: 1px solid var(--border-strong) !important;
             border-radius: 10px !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
         }}
-
         [data-testid="stSidebarCollapseButton"] button:hover,
-        [data-testid="collapsedControl"] button:hover,
-        button[aria-label="Close sidebar"]:hover,
-        button[aria-label="Open sidebar"]:hover {{
-            background: {sidebar_ctrl_hover_bg} !important;
-            color: {sidebar_ctrl_text} !important;
-            border-color: {accent_blue} !important;
+        [data-testid="collapsedControl"] button:hover {{
+            border-color: var(--brand) !important;
+        }}
+        [data-testid="stSidebarCollapseButton"] button svg,
+        [data-testid="collapsedControl"] button svg {{
+            fill: var(--ink) !important; stroke: var(--ink) !important;
         }}
 
-        [data-testid="stSidebarCollapseButton"] button svg,
-        [data-testid="collapsedControl"] button svg,
-        button[aria-label="Close sidebar"] svg,
-        button[aria-label="Open sidebar"] svg {{
-            fill: {sidebar_ctrl_text} !important;
-            stroke: {sidebar_ctrl_text} !important;
+        @media (prefers-reduced-motion: reduce) {{
+            *, *::before, *::after {{
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }}
         }}
     </style>
+    """, unsafe_allow_html=True)
+
+
+def render_page_header(eyebrow, title, subtitle=''):
+    """Clean page header — replaces the old 3D hero banner."""
+    sub = f'<p class="page-subtitle">{html.escape(subtitle)}</p>' if subtitle else ''
+    st.markdown(f"""
+    <div class="page-head">
+        <div class="page-eyebrow">{html.escape(eyebrow)}</div>
+        <h1 class="page-title">{html.escape(title)}</h1>
+        {sub}
+    </div>
     """, unsafe_allow_html=True)
 
 
@@ -673,7 +574,7 @@ def render_metric_card(label, value, trend_value=None, trend_direction=None, tre
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def render_traffic_source_bars(video_df):
-    """Render traffic source breakdown as styled HTML bars (simulated from categories)."""
+    """Render views-by-category breakdown as styled HTML bars."""
     if 'category' not in video_df.columns or video_df.empty:
         return
 
@@ -682,37 +583,16 @@ def render_traffic_source_bars(video_df):
     if total == 0:
         return
 
-    source_mapping = {
-        'General': 'External',
-        'Tech Reviews': 'YouTube search',
-        'Tutorials': 'Browse features',
-        'Product Comparisons': 'Suggested videos',
-        'News Updates': 'Channel pages',
-        'Unboxings': 'Direct or unknown',
-        'Software Updates': 'Notifications',
-        'Accessories': 'Playlists',
-        'Price Analysis': 'Other',
-    }
-
-    colors = ['#7B68EE', '#3EA6FF', '#22d3ee', '#a78bfa',
-              '#60a5fa', '#818cf8', '#c084fc', '#38bdf8', '#6366f1']
-    sources = []
-    for cat, views in category_views.sort_values(ascending=False).items():
-        pct = views / total * 100
-        sources.append((source_mapping.get(cat, cat), pct))
-
-    # Merge duplicates
-    merged = {}
-    for name, pct in sources:
-        merged[name] = merged.get(name, 0) + pct
-    sources = sorted(merged.items(), key=lambda x: x[1], reverse=True)
+    colors = charts.get_theme_colors()['viz']
+    sources = [(cat, views / total * 100)
+               for cat, views in category_views.sort_values(ascending=False).items()]
 
     html_rows = ''
     for i, (name, pct) in enumerate(sources[:6]):
         color = colors[i % len(colors)]
         html_rows += f"""
         <div class="yt-traffic-row">
-            <span class="yt-traffic-label">{name}</span>
+            <span class="yt-traffic-label">{html.escape(str(name))}</span>
             <div class="yt-traffic-bar-bg">
                 <div class="yt-traffic-bar-fill" style="width:{pct:.1f}%; background:{color};"></div>
             </div>
@@ -753,7 +633,7 @@ def render_sidebar():
 
                 st.markdown(f"""
                 <div class="sidebar-channel-info">
-                    <div style="width:80px;height:80px;border-radius:50%;overflow:hidden;background:#111;margin:0 auto 10px;">
+                    <div style="width:80px;height:80px;border-radius:50%;overflow:hidden;background:var(--bg-subtle);margin:0 auto 10px;">
                         <video autoplay loop muted playsinline style="width:100%;height:100%;object-fit:cover;display:block;">
                             <source src="data:video/mp4;base64,{video_b64}" type="video/mp4">
                         </video>
@@ -765,7 +645,7 @@ def render_sidebar():
             else:
                 st.markdown(f"""
                 <div class="sidebar-channel-info">
-                    <div style="width:80px;height:80px;border-radius:50%;background:#333;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;">
+                    <div style="width:80px;height:80px;border-radius:50%;background:var(--bg-subtle);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;">
                         <span style="font-size:2rem;color:{text_secondary};">❤️</span>
                     </div>
                     <div class="sidebar-channel-label">Your channel</div>
@@ -779,7 +659,8 @@ def render_sidebar():
         page = st.radio(
             "Navigation",
             ["📊 Analytics", "🔍 Video Explorer",
-                "📈 Trend Analysis", "⚔️ Multi-Channel"],
+                "📈 Trend Analysis", "⚔️ Multi-Channel",
+                "🤖 AI Insights", "💬 Comment Sentiment"],
             label_visibility="collapsed"
         )
 
@@ -792,33 +673,7 @@ def render_sidebar():
             st.caption(f"🎬 {ch.get('video_count', 0):,} videos")
             st.caption(f"👁️ {ch.get('view_count', 0):,} total views")
 
-        # st.markdown('<hr class="yt-divider">', unsafe_allow_html=True)
-
-        # Dark / Light mode toggle
-        current_theme = st.session_state.get('theme', 'dark')
-        theme_icon = '🌙' if current_theme == 'dark' else '☀️'
-        theme_label = 'Dark mode' if current_theme == 'dark' else 'Light mode'
-
-        # Theme toggle with callback for instant update
-        def toggle_theme():
-            st.session_state['theme'] = 'dark' if st.session_state.get(
-                'theme_toggle_key') else 'light'
-
-        col_label, col_toggle = st.columns([5, 2])
-        with col_label:
-            st.markdown(
-                f'<div class="yt-theme-toggle"><span>{theme_icon}</span><span class="yt-theme-toggle-label">{theme_label}</span></div>',
-                unsafe_allow_html=True
-            )
-
-        with col_toggle:
-            st.toggle(
-                'Toggle theme',
-                value=(current_theme == 'dark'),
-                key='theme_toggle_key',
-                label_visibility='collapsed',
-                on_change=toggle_theme
-            )
+        # ── Theme follows OS/browser automatically (theme.resolve_mode) ──
 
         # ── User info & Logout ──────────────────────────────
         st.markdown('<hr class="yt-divider">', unsafe_allow_html=True)
@@ -841,19 +696,11 @@ def page_channel_analytics():
     """Main analytics page matching YouTube Studio screenshot."""
     text_secondary = charts.get_theme_colors()['text_secondary']
 
-    # 3D Hero Section
-    render_hero_section(
-        title="Channel Analytics",
-        subtitle="Deep-dive performance metrics · Powered by YouTube Data API"
+    render_page_header(
+        "Channel Analytics",
+        "Channel analytics",
+        "Deep-dive performance metrics · Powered by YouTube Data API"
     )
-
-    # Header row
-    st.markdown("""
-    <div class="yt-header-row">
-        <h1 class="yt-page-title">Channel analytics</h1>
-       
-    </div>
-    """, unsafe_allow_html=True)
 
     # Read API key — st.secrets (Cloud) or os.getenv (local .env)
     try:
@@ -905,7 +752,7 @@ def page_channel_analytics():
         st.markdown(f"""
         <div style="text-align:center;padding:80px 20px;">
             <div style="font-size:3rem;margin-bottom:16px;">🧐</div>
-            <div style="font-family:Roboto,sans-serif;font-size:1.1rem;color:{text_secondary};">
+            <div style="font-family:Inter,sans-serif;font-size:1.1rem;color:{text_secondary};">
                 Enter a YouTube Channel ID or @Username above to start analyzing
             </div>
         </div>
@@ -916,9 +763,9 @@ def page_channel_analytics():
     engagement_metrics = st.session_state['engagement_metrics']
     channel_data = st.session_state['channel_data']
 
-    # ─── Tab Bar (Overview / Reach / Engagement / Audience / Revenue) ───
+    # ─── Tab Bar ───
     tab_overview, tab_reach, tab_engagement, tab_audience, tab_revenue = st.tabs(
-        ["Overview", "Reach", "Engagement", "Audience", "Revenue"]
+        ["Overview", "Reach", "Engagement", "Audience", "Growth Forecast"]
     )
 
     # ══════════════════════════ OVERVIEW TAB ══════════════════════════════
@@ -1035,8 +882,6 @@ def page_channel_analytics():
         st.plotly_chart(charts.views_area_chart(
             video_df), use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('<span class="yt-see-more">SEE MORE</span>',
-                    unsafe_allow_html=True)
 
         st.markdown('<div style="height:20px;"></div>', unsafe_allow_html=True)
 
@@ -1046,8 +891,8 @@ def page_channel_analytics():
         with col_traffic:
             st.markdown("""
             <div class="yt-chart-card">
-                <div class="yt-chart-title">Traffic source types</div>
-                <div class="yt-chart-subtitle">Views · Last 28 days</div>
+                <div class="yt-chart-title">Content category mix</div>
+                <div class="yt-chart-subtitle">Views grouped by inferred category</div>
             """, unsafe_allow_html=True)
             st.plotly_chart(charts.traffic_sources_donut(
                 video_df), use_container_width=True)
@@ -1057,8 +902,8 @@ def page_channel_analytics():
         with col_funnel:
             st.markdown("""
             <div class="yt-chart-card">
-                <div class="yt-chart-title">Impressions and how they led to watch time</div>
-                <div class="yt-chart-subtitle">Data available · Last 28 days</div>
+                <div class="yt-chart-title">Engagement breakdown</div>
+                <div class="yt-chart-subtitle">Across all analyzed videos</div>
             """, unsafe_allow_html=True)
 
             # Funnel-style metrics
@@ -1068,10 +913,10 @@ def page_channel_analytics():
             total_interactions = total_likes + total_comments
             ctr = (total_interactions / max(total_v, 1)) * 100
 
-            render_metric_card("Total Views (Impressions)",
+            render_metric_card("Total Views",
                                format_number(total_v))
             st.markdown(f"""
-            <div style="text-align:center;padding:8px 0;color:{text_secondary};font-size:0.8rem;font-family:Roboto,sans-serif;">
+            <div style="text-align:center;padding:8px 0;color:{text_secondary};font-size:0.8rem;font-family:'Inter',sans-serif;">
                 {ctr:.1f}% engagement rate
             </div>
             """, unsafe_allow_html=True)
@@ -1136,13 +981,13 @@ def page_channel_analytics():
                 video_df), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # ═══════════════════════ REVENUE TAB ══════════════════════════════════
+    # ═══════════════════════ GROWTH FORECAST TAB ══════════════════════════
     with tab_revenue:
         st.markdown("""
-        <div style="text-align:center;padding:60px 20px;">
-            <div style="font-size:2.5rem;margin-bottom:12px;">💰</div>
-            <div class="yt-chart-title" style="text-align:center;">Revenue analytics</div>
-            <div class="yt-chart-subtitle" style="text-align:center;">Growth forecast based on current engagement trends</div>
+        <div style="text-align:center;padding:48px 20px;">
+            <div style="font-size:2.2rem;margin-bottom:12px;">📈</div>
+            <div class="yt-chart-title" style="text-align:center;">Growth forecast</div>
+            <div class="yt-chart-subtitle" style="text-align:center;">Projected engagement based on current trends</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1201,13 +1046,10 @@ def page_channel_analytics():
 
 def page_video_explorer():
     """Page: Search, filter, and explore individual videos"""
-    st.markdown('<h1 class="yt-page-title">🔍 Video Explorer</h1>',
-                unsafe_allow_html=True)
-
-    # 3D Hero Section
-    render_hero_section(
-        title="Video Explorer",
-        subtitle="Search, filter and discover top-performing content"
+    render_page_header(
+        "Video Explorer",
+        "Video explorer",
+        "Search, filter and discover top-performing content"
     )
 
     if 'video_df' not in st.session_state:
@@ -1221,7 +1063,7 @@ def page_video_explorer():
     text_secondary = theme_colors['text_secondary']
 
     st.markdown(f"""
-    <div style="color:{text_secondary};font-family:Roboto,sans-serif;font-size:0.9rem;margin-bottom:16px;">
+    <div style="color:{text_secondary};font-family:Inter,sans-serif;font-size:0.9rem;margin-bottom:16px;">
         Exploring videos from <strong style="color:{text_primary};">{channel_data.get('title', 'Unknown Channel')}</strong>
     </div>
     """, unsafe_allow_html=True)
@@ -1282,13 +1124,10 @@ def page_video_explorer():
 
 def page_trend_analysis():
     """Page: Time-series trends, posting patterns, optimal times"""
-    st.markdown('<h1 class="yt-page-title">📈 Trend Analysis</h1>',
-                unsafe_allow_html=True)
-
-    # 3D Hero Section
-    render_hero_section(
-        title="Trend Analysis",
-        subtitle="Time-series insights · Posting patterns · Predictive forecasting"
+    render_page_header(
+        "Trend Analysis",
+        "Trend analysis",
+        "Time-series insights · Posting patterns · Predictive forecasting"
     )
 
     if 'video_df' not in st.session_state:
@@ -1302,7 +1141,7 @@ def page_trend_analysis():
     text_secondary = theme_colors['text_secondary']
 
     st.markdown(f"""
-    <div style="color:{text_secondary};font-family:Roboto,sans-serif;font-size:0.9rem;margin-bottom:16px;">
+    <div style="color:{text_secondary};font-family:Inter,sans-serif;font-size:0.9rem;margin-bottom:16px;">
         Trends for <strong style="color:{text_primary};">{channel_data.get('title', 'Unknown Channel')}</strong>
     </div>
     """, unsafe_allow_html=True)
@@ -1385,13 +1224,10 @@ def page_trend_analysis():
 
 def page_multi_channel():
     """Page: Multi-channel comparison and competitive benchmarking"""
-    st.markdown('<h1 class="yt-page-title">⚔️ Multi-Channel Comparison</h1>',
-                unsafe_allow_html=True)
-
-    # 3D Hero Section
-    render_hero_section(
-        title="Multi-Channel Battle",
-        subtitle="Compare channels side by side · Competitive benchmarking"
+    render_page_header(
+        "Multi-Channel",
+        "Multi-channel comparison",
+        "Compare channels side by side · Competitive benchmarking"
     )
 
     theme_colors = charts.get_theme_colors()
@@ -1399,7 +1235,7 @@ def page_multi_channel():
     text_secondary = theme_colors['text_secondary']
 
     st.markdown(f"""
-    <div style="color:{text_secondary};font-family:Roboto,sans-serif;font-size:0.9rem;margin-bottom:16px;">
+    <div style="color:{text_secondary};font-family:Inter,sans-serif;font-size:0.9rem;margin-bottom:16px;">
         Compare multiple YouTube channels side by side
     </div>
     """, unsafe_allow_html=True)
@@ -1516,7 +1352,7 @@ def page_multi_channel():
                     primary_title = report['primary_channel_metrics'].get(
                         'title', 'Primary Channel')
                     st.markdown(f"""
-                    <div style="color:{text_primary};font-family:Roboto,sans-serif;font-weight:600;font-size:1rem;margin-bottom:12px;">
+                    <div style="color:{text_primary};font-family:Inter,sans-serif;font-weight:600;font-size:1rem;margin-bottom:12px;">
                         Primary Channel: {primary_title}
                     </div>
                     """, unsafe_allow_html=True)
@@ -1542,6 +1378,197 @@ def page_multi_channel():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PAGE: AI INSIGHTS (LLM-generated analysis)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def page_ai_insights():
+    """Page: AI reads the computed metrics and writes a performance report."""
+    render_page_header(
+        "AI Insights",
+        "AI insights",
+        "Plain-English analysis of your channel"
+    )
+
+    if 'video_df' not in st.session_state:
+        st.info("Please analyze a channel first from the **Analytics** page.")
+        return
+
+    if not ai_configured():
+        st.info("🔑 Add your **CLOUDFLARE_API_TOKEN** to `.env` (or Streamlit Cloud secrets) "
+                "to enable AI features. See the README for where to put it.")
+        return
+
+    video_df = st.session_state['video_df']
+    channel_data = st.session_state.get('channel_data', {})
+    engagement_metrics = st.session_state.get('engagement_metrics', {})
+
+    col_btn, _ = st.columns([1, 3])
+    with col_btn:
+        generate = st.button("✨  Generate AI insights", type="primary")
+
+    if generate:
+        # Best-effort forecast from the DB to enrich the prompt.
+        forecast = None
+        try:
+            storage_service = DataStorageService()
+            predictive = storage_service.get_predictive_analytics()
+            cid = channel_data.get('channel_id')
+            if cid:
+                forecast = predictive.forecast_channel_growth(cid, days_ahead=30)
+        except Exception:
+            forecast = None
+
+        with st.spinner("Analyzing your channel..."):
+            result = ai_insights.generate_insights(
+                channel_data, engagement_metrics, video_df, forecast)
+        st.session_state['ai_insights_result'] = result
+
+    result = st.session_state.get('ai_insights_result')
+    if result:
+        if result.get('ok'):
+            st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
+            st.markdown(result['markdown'])
+            st.markdown('</div>', unsafe_allow_html=True)
+        elif result.get('error') == 'no_key':
+            st.info("🔑 Add your CLOUDFLARE_API_TOKEN to enable AI features.")
+        else:
+            st.error(f"Could not generate insights: {result.get('error')}")
+    else:
+        st.caption("Click **Generate AI insights** to get an LLM-written performance "
+                   "report and specific action tips based on your channel's numbers.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PAGE: COMMENT SENTIMENT (AI classification of viewer comments)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def page_comment_sentiment():
+    """Page: fetch viewer comments and classify sentiment with AI."""
+    render_page_header(
+        "Comment Sentiment",
+        "Comment sentiment",
+        "AI reads your viewers' comments"
+    )
+
+    if 'video_df' not in st.session_state:
+        st.info("Please analyze a channel first from the **Analytics** page.")
+        return
+
+    if not ai_configured():
+        st.info("🔑 Add your **CLOUDFLARE_API_TOKEN** to `.env` (or Streamlit Cloud secrets) "
+                "to enable AI features. See the README for where to put it.")
+        return
+
+    video_df = st.session_state['video_df']
+    channel_data = st.session_state.get('channel_data', {})
+
+    col_a, _ = st.columns([1, 3])
+    with col_a:
+        max_videos = st.number_input(
+            "Top videos to scan", min_value=3, max_value=20, value=8, step=1)
+    st.caption("Fetches recent comments from your top videos by views, then classifies "
+               "each as positive / neutral / negative.")
+
+    if st.button("💬  Analyze comments", type="primary"):
+        try:
+            handler = YouTubeAPIHandler()
+        except Exception as e:
+            st.error(f"YouTube API not configured: {e}")
+            return
+
+        top_videos = video_df.nlargest(int(max_videos), 'view_count')
+        rows = list(top_videos.iterrows())
+        all_comments = []
+        progress = st.progress(0.0, text="Fetching comments...")
+        for i, (_, v) in enumerate(rows):
+            try:
+                raw = handler.get_video_comments(v['video_id'], max_results=30)
+                all_comments.extend(raw)
+            except Exception:
+                pass
+            progress.progress((i + 1) / max(len(rows), 1),
+                              text=f"Fetching comments... ({i + 1}/{len(rows)})")
+        progress.empty()
+
+        if not all_comments:
+            st.warning("No comments found (comments may be disabled on these videos).")
+            return
+
+        comments_df = DataProcessor().process_comment_data(all_comments)
+        if comments_df.empty:
+            st.warning("No usable comments to analyze.")
+            return
+
+        comments_df['channel_id'] = channel_data.get('channel_id')
+
+        with st.spinner(f"Classifying {len(comments_df)} comments..."):
+            comments_df = ai_sentiment.analyze_comment_sentiment(comments_df)
+
+        # Best-effort persistence — charts render from memory regardless.
+        try:
+            storage_service = DataStorageService()
+            storage_service.save_comment_data(comments_df)
+        except Exception as e:
+            st.caption(f"(Saved to session only — database write skipped: {e})")
+
+        st.session_state['comments_df'] = comments_df
+
+    comments_df = st.session_state.get('comments_df')
+    if comments_df is None or comments_df.empty:
+        st.caption("Click **Analyze comments** to fetch and classify viewer comments.")
+        return
+
+    # ─── Summary metric cards ───
+    total = len(comments_df)
+    pos = int((comments_df['sentiment_label'] == 'positive').sum())
+    neg = int((comments_df['sentiment_label'] == 'negative').sum())
+    avg_score = float(comments_df['sentiment_score'].mean())
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        render_metric_card("Comments Analyzed", str(total))
+    with c2:
+        render_metric_card("Positive", f"{pos / total * 100:.0f}%",
+                           trend_text=f"{pos} comments")
+    with c3:
+        render_metric_card("Negative", f"{neg / total * 100:.0f}%",
+                           trend_text=f"{neg} comments")
+    with c4:
+        render_metric_card("Avg Sentiment", f"{avg_score:+.2f}",
+                           trend_text="-1 to +1 scale")
+
+    st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
+
+    # ─── Charts ───
+    col_l, col_r = st.columns(2)
+    with col_l:
+        st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
+        st.plotly_chart(charts.sentiment_donut(comments_df),
+                        use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col_r:
+        st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
+        st.plotly_chart(charts.sentiment_by_video_bar(comments_df, video_df),
+                        use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # ─── Top positive / negative comments ───
+    col_p, col_n = st.columns(2)
+    with col_p:
+        st.markdown('<div class="yt-chart-title">😊 Most positive comments</div>',
+                    unsafe_allow_html=True)
+        for _, row in comments_df.nlargest(5, 'sentiment_score').iterrows():
+            st.markdown(f"> {html.escape(str(row['text'])[:200])}  \n"
+                        f"`{row['sentiment_score']:+.2f}`")
+    with col_n:
+        st.markdown('<div class="yt-chart-title">😠 Most negative comments</div>',
+                    unsafe_allow_html=True)
+        for _, row in comments_df.nsmallest(5, 'sentiment_score').iterrows():
+            st.markdown(f"> {html.escape(str(row['text'])[:200])}  \n"
+                        f"`{row['sentiment_score']:+.2f}`")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # MAIN APP ENTRY POINT
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1564,18 +1591,12 @@ def main():
     # AUTHENTICATED — render the full dashboard
     # ══════════════════════════════════════════════════════════════════════
 
-    # Initialize theme in session state if not exists
-    if 'theme' not in st.session_state:
-        st.session_state['theme'] = 'dark'
+    # Resolve theme: corner toggle override → system preference → light
+    mode = theme_tokens.resolve_mode()
+    inject_yt_studio_styles(mode)
 
-    # Apply theme based on session state
-    theme = st.session_state.get('theme', 'dark')
-    inject_yt_studio_styles(theme)
-
-    # ── Inject 3D interactive effects ──
-    inject_3d_effects(theme)
-    render_floating_orbs()
-    inject_3d_javascript(theme)
+    # Theme toggle — injected globally
+    theme_tokens.inject_theme_toggle()
 
     # Initialize sidebar state
     if 'sidebar_visible' not in st.session_state:
@@ -1615,6 +1636,10 @@ def main():
         page_trend_analysis()
     elif page == "⚔️ Multi-Channel":
         page_multi_channel()
+    elif page == "🤖 AI Insights":
+        page_ai_insights()
+    elif page == "💬 Comment Sentiment":
+        page_comment_sentiment()
 
 
 if __name__ == "__main__":

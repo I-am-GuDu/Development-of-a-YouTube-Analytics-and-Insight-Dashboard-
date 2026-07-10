@@ -58,7 +58,16 @@ jobs:
             # -w  : Print HTTP status code
             # --connect-timeout : Max time for connection (seconds)
             # --max-time        : Max total time for the request (seconds)
-            # -L  : Follow redirects (Streamlit may redirect)
+            # -L  : Follow redirects (Streamlit's auth flow bounces through
+            #       share.streamlit.io and back before serving the app)
+            # -c/-b cookiejar   : Streamlit's auth redirect chain sets a
+            #       session cookie on each hop and expects it back on the
+            #       next one. Without a cookie jar, curl drops it and the
+            #       redirect chain (app -> share.streamlit.io/-/auth/app ->
+            #       app/-/login?payload=... -> app) loops until --max-time,
+            #       leaving HTTP_STATUS stuck on the last 303 hop — which
+            #       still passes the 200-399 check below, so the job reports
+            #       success without ever actually reaching the app.
             # -A  : Browser-like User-Agent so the request registers as a
             #       genuine visit (Streamlit's sleep timer keys off traffic)
             # IMPORTANT: do NOT append "2>&1" here. Merging curl's stderr into
@@ -69,6 +78,7 @@ jobs:
               --connect-timeout 20 \
               --max-time 45 \
               -L \
+              -c cookiejar.txt -b cookiejar.txt \
               -A "Mozilla/5.0 (compatible; KeepAliveBot/1.0; +https://github.com)" \
               "$APP_URL") || true
 

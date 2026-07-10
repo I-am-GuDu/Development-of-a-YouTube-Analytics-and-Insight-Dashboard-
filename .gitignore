@@ -20,12 +20,14 @@ graphify-out/
 
 # Graphify / AI agent configs
 .agents/
-.cursor/
-.kiro/
-.github/copilot-instructions.md
+.claude/
+skills-lock.json
 AGENTS.md
 CLAUDE.md
 GEMINI.md
+.cursor/
+.kiro/
+.github/copilot-instructions.md
 
 # Test artifacts
 .pytest_cache/
@@ -53,5 +55,3 @@ Documents/
 
 # Antigravity config
 pyrightconfig.json
-skills-lock.json
-.claude 

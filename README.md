@@ -1,3 +1,4 @@
+
 # INFOSYS - YouTube Analytics Dashboard
 
 ## What is this project?
@@ -28,6 +29,9 @@ These parts are already built:
 7. PostgreSQL database saving (channels, videos, and summary metrics).
 8. A table setup file that creates all needed database tables.
 9. Simple future guessing (growth forecast + posting/content suggestions).
+10. **AI features (Cloudflare Workers AI — GLM 5.2, free tier):** an "AI Insights"
+    page that writes a plain-English performance report, and a "Comment Sentiment"
+    page that fetches viewer comments and classifies each as positive/neutral/negative.
 
 ## Simple project flow
 
@@ -103,6 +107,14 @@ Shows trend lines, posting patterns, best times, and forecast cards.
 4. **Multi-Channel**
 Compares many channels side by side and gives simple comparison notes.
 
+5. **AI Insights**
+An AI model reads your channel's numbers and writes a short performance report
+plus specific action tips. Needs `CLOUDFLARE_API_TOKEN`.
+
+6. **Comment Sentiment**
+Fetches viewer comments from your top videos and classifies each as positive,
+neutral, or negative with charts and example comments. Needs `CLOUDFLARE_API_TOKEN`.
+
 ## What you need before running
 
 1. Python 3.10+ (recommended)
@@ -134,6 +146,12 @@ Copy-Item .env.example .env
 
 ```env
 YOUTUBE_API_KEY=your_key_here
+# For the AI features (Cloudflare Workers AI, free tier — model GLM 5.2).
+# Create a Workers AI API token in the Cloudflare dashboard. Leave blank to run
+# the app without AI (those two pages show an "add token" note).
+CLOUDFLARE_API_TOKEN=your_cloudflare_token_here
+# Optional — auto-detected from the token if left blank.
+CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=youtube_analytics
@@ -143,7 +161,9 @@ DB_PASSWORD=your_password_here
 
 5. Create the PostgreSQL database (example name: `youtube_analytics`).
 
-6. Run SQL schema file `src/data_storage/schema.sql` on that database.
+6. Run SQL schema file `src/data_storage/schema.sql` on that database. (Re-run it
+   after updating — it now also creates the `video_comments` table used by the
+   Comment Sentiment feature; `IF NOT EXISTS` makes re-running safe.)
 
 7. Start app:
 
@@ -159,6 +179,8 @@ streamlit run src/main.py
 
 ```toml
 YOUTUBE_API_KEY = "your_key_here"
+CLOUDFLARE_API_TOKEN = "your_cloudflare_token_here"
+CLOUDFLARE_ACCOUNT_ID = "your_cloudflare_account_id"
 DB_HOST = "your_db_host"
 DB_PORT = "5432"
 DB_NAME = "youtube_analytics"

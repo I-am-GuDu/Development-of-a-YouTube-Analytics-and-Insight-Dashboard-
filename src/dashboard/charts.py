@@ -9,84 +9,39 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 
+from . import theme as _theme
+
 
 def get_theme_colors():
-    """Get colors based on current theme from session state."""
-    is_dark = st.session_state.get('theme', 'dark') == 'dark'
+    """Theme-aware color tokens for charts.
 
-    if is_dark:
-        return {
-            'bg_page': '#0f0f0f',
-            'bg_card': '#272727',
-            'bg_card_hover': '#333333',
-            'border': 'rgba(255,255,255,0.1)',
-            'text_primary': '#FFFFFF',
-            'text_secondary': '#AAAAAA',
-            'text_link': '#3EA6FF',
-            'trend_positive': '#2BA640',
-            'trend_negative': '#FF4444',
-            'chart_line': '#7B68EE',
-            'chart_fill': 'rgba(123,104,238,0.25)',
-            'chart_bar': 'rgba(123,104,238,0.7)',
-            'accent_blue': '#3EA6FF',
-            'accent_purple': '#7B68EE',
-            'accent_teal': '#22d3ee',
-            'grid': 'rgba(255,255,255,0.05)',
-            'plot_bg': 'rgba(39,39,39,0.4)',
-            'template': 'plotly_dark',
-        }
-    else:
-        return {
-            'bg_page': '#f9f9f9',
-            'bg_card': '#ffffff',
-            'bg_card_hover': '#f0f0f0',
-            'border': 'rgba(0,0,0,0.1)',
-            'text_primary': '#0f0f0f',
-            'text_secondary': '#606060',
-            'text_link': '#065fd4',
-            'trend_positive': '#2BA640',
-            'trend_negative': '#FF4444',
-            'chart_line': '#6366f1',
-            'chart_fill': 'rgba(99,102,241,0.2)',
-            'chart_bar': 'rgba(99,102,241,0.7)',
-            'accent_blue': '#065fd4',
-            'accent_purple': '#6366f1',
-            'accent_teal': '#0891b2',
-            'grid': 'rgba(0,0,0,0.06)',
-            'plot_bg': 'rgba(255,255,255,0.4)',
-            'template': 'plotly_white',
-        }
-
-
-# Keep YT_COLORS for backward compatibility
-YT_COLORS = {
-    'bg_page': '#0f0f0f',
-    'bg_card': '#272727',
-    'bg_card_hover': '#333333',
-    'border': 'rgba(255,255,255,0.1)',
-    'text_primary': '#FFFFFF',
-    'text_secondary': '#AAAAAA',
-    'text_link': '#3EA6FF',
-    'trend_positive': '#2BA640',
-    'trend_negative': '#FF4444',
-    'chart_line': '#7B68EE',
-    'chart_fill': 'rgba(123,104,238,0.25)',
-    'chart_bar': 'rgba(123,104,238,0.7)',
-    'accent_blue': '#3EA6FF',
-    'accent_purple': '#7B68EE',
-    'accent_teal': '#22d3ee',
-    'grid': 'rgba(255,255,255,0.05)',
-}
-
-DONUT_PALETTE = [
-    '#7B68EE', '#3EA6FF', '#22d3ee', '#a78bfa',
-    '#60a5fa', '#818cf8', '#c084fc', '#38bdf8',
-]
-
-DONUT_PALETTE_LIGHT = [
-    '#6366f1', '#065fd4', '#0891b2', '#8b5cf6',
-    '#3b82f6', '#6366f1', '#a855f7', '#0ea5e9',
-]
+    Thin adapter over the single token source in ``theme.py`` — keeps the
+    extra keys (accent_*, trend_*) the chart functions reference.
+    """
+    t = _theme.get_tokens()
+    return {
+        'bg_page': t['bg_page'],
+        'bg_card': t['bg_card'],
+        'bg_card_hover': t['bg_card_hover'],
+        'border': t['border'],
+        'text_primary': t['text_primary'],
+        'text_secondary': t['text_secondary'],
+        'text_link': t['brand'],
+        'trend_positive': t['pos'],
+        'trend_negative': t['neg'],
+        'chart_line': t['chart_line'],
+        'chart_fill': t['chart_fill'],
+        'chart_bar': t['chart_bar'],
+        'accent_blue': t['viz'][1],
+        'accent_purple': t['viz'][0],
+        'accent_teal': t['viz'][3],
+        'grid': t['grid'],
+        'plot_bg': t['plot_bg'],
+        'template': t['template'],
+        'heat_low': t['heat_low'],
+        'donut': t['donut'],
+        'viz': t['viz'],
+    }
 
 
 def _apply_yt_studio_layout(fig, height=None):
@@ -97,8 +52,8 @@ def _apply_yt_studio_layout(fig, height=None):
         template=colors['template'],
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor=colors['plot_bg'],
-        font=dict(family="Roboto, sans-serif", color=colors['text_secondary'], size=12),
-        title=dict(font=dict(size=16, color=colors['text_primary'], family="Roboto, sans-serif"), x=0.01, y=0.97),
+        font=dict(family="Inter, sans-serif", color=colors['text_secondary'], size=12),
+        title=dict(font=dict(size=16, color=colors['text_primary'], family="Inter, sans-serif"), x=0.01, y=0.97),
         margin=dict(l=20, r=20, t=50, b=20),
         legend=dict(
             bgcolor="rgba(0,0,0,0)",
@@ -109,7 +64,7 @@ def _apply_yt_studio_layout(fig, height=None):
         hoverlabel=dict(
             bgcolor=colors['bg_card'],
             bordercolor=colors['border'],
-            font=dict(color=colors['text_primary'], family="Roboto, sans-serif"),
+            font=dict(color=colors['text_primary'], family="Inter, sans-serif"),
         ),
     )
     if height:
@@ -170,41 +125,20 @@ def views_area_chart(video_df):
 
 
 def traffic_sources_donut(video_df):
-    """Donut chart for traffic source types (simulated from video categories)."""
+    """Donut chart of views split by inferred content category."""
     colors = get_theme_colors()
-    is_dark = st.session_state.get('theme', 'dark') == 'dark'
-    palette = DONUT_PALETTE if is_dark else DONUT_PALETTE_LIGHT
+    palette = colors['donut']
 
     if 'category' not in video_df.columns:
         return None
 
     category_views = video_df.groupby('category')['view_count'].sum().reset_index()
-    category_views.columns = ['source', 'views']
+    category_views.columns = ['category', 'views']
     category_views = category_views.sort_values('views', ascending=False)
-
-    # Rename to traffic-source-like labels
-    source_mapping = {
-        'General': 'External',
-        'Tech Reviews': 'YouTube search',
-        'Tutorials': 'Browse features',
-        'Product Comparisons': 'Suggested videos',
-        'News Updates': 'Channel pages',
-        'Unboxings': 'Direct or unknown',
-        'Software Updates': 'Notifications',
-        'Accessories': 'Playlists',
-        'Price Analysis': 'Other',
-    }
-    category_views['source'] = category_views['source'].map(
-        lambda x: source_mapping.get(x, x)
-    )
-    # Merge duplicates
-    category_views = category_views.groupby('source')['views'].sum().reset_index()
-    category_views = category_views.sort_values('views', ascending=False)
-    category_views['pct'] = (category_views['views'] / category_views['views'].sum() * 100).round(1)
 
     fig = go.Figure()
     fig.add_trace(go.Pie(
-        labels=category_views['source'],
+        labels=category_views['category'],
         values=category_views['views'],
         hole=0.6,
         marker=dict(colors=palette[:len(category_views)],
@@ -214,10 +148,10 @@ def traffic_sources_donut(video_df):
     ))
 
     fig.update_layout(
-        title=dict(text='Traffic source types', font=dict(size=16, color=colors['text_primary'])),
+        title=dict(text='Views by category', font=dict(size=16, color=colors['text_primary'])),
         annotations=[dict(
-            text='Traffic<br>Sources',
-            x=0.5, y=0.5, font=dict(size=13, color=colors['text_secondary'], family='Roboto'),
+            text='Category<br>mix',
+            x=0.5, y=0.5, font=dict(size=13, color=colors['text_secondary'], family='Inter'),
             showarrow=False,
         )],
         showlegend=False,
@@ -320,8 +254,7 @@ def category_performance_bar(video_df):
 def category_distribution_pie(video_df):
     """Donut chart showing distribution of videos across categories"""
     colors = get_theme_colors()
-    is_dark = st.session_state.get('theme', 'dark') == 'dark'
-    palette = DONUT_PALETTE if is_dark else DONUT_PALETTE_LIGHT
+    palette = colors['donut']
 
     category_counts = video_df['category'].value_counts().reset_index()
     category_counts.columns = ['category', 'count']
@@ -410,7 +343,6 @@ def posting_frequency_chart(video_df):
 def optimal_posting_heatmap(video_df):
     """Heatmap showing avg engagement by day of week and hour"""
     colors = get_theme_colors()
-    is_dark = st.session_state.get('theme', 'dark') == 'dark'
 
     df = video_df.copy()
     df['day_of_week'] = df['publish_date'].dt.day_name()
@@ -421,11 +353,8 @@ def optimal_posting_heatmap(video_df):
     existing_days = [d for d in day_order if d in pivot.index]
     pivot = pivot.reindex(existing_days)
 
-    # Different color scale for light/dark mode
-    if is_dark:
-        color_scale = [[0, '#1a1a2e'], [0.5, colors['accent_purple']], [1, colors['accent_teal']]]
-    else:
-        color_scale = [[0, '#e0e7ff'], [0.5, colors['accent_purple']], [1, colors['accent_teal']]]
+    # Theme-aware sequential ramp: subtle low → brand → teal
+    color_scale = [[0, colors['heat_low']], [0.5, colors['accent_purple']], [1, colors['accent_teal']]]
 
     fig = px.imshow(
         pivot,
@@ -468,4 +397,67 @@ def growth_forecast_chart(forecast_data):
         xaxis_title='Date', yaxis_title='Predicted Engagement Rate (%)',
         hovermode='x unified'
     )
+    return _apply_yt_studio_layout(fig)
+
+
+# ─── AI Comment Sentiment charts ─────────────────────────────────────────────
+
+def _sentiment_color_map(colors):
+    """Fixed positive/neutral/negative colors from theme tokens."""
+    return {
+        'positive': colors['trend_positive'],
+        'neutral': colors['text_secondary'],
+        'negative': colors['trend_negative'],
+    }
+
+
+def sentiment_donut(comments_df):
+    """Donut chart of positive / neutral / negative comment share."""
+    colors = get_theme_colors()
+
+    counts = comments_df['sentiment_label'].value_counts().reset_index()
+    counts.columns = ['sentiment', 'count']
+
+    fig = px.pie(
+        counts,
+        values='count',
+        names='sentiment',
+        title='Comment Sentiment Breakdown',
+        hole=0.55,
+        color='sentiment',
+        color_discrete_map=_sentiment_color_map(colors),
+    )
+    fig.update_traces(textposition='inside', textinfo='percent+label',
+                      marker=dict(line=dict(color=colors['bg_card'], width=2)))
+    return _apply_yt_studio_layout(fig)
+
+
+def sentiment_by_video_bar(comments_df, video_df, top_n=8):
+    """Grouped bar of sentiment counts per video (top N by comment volume)."""
+    colors = get_theme_colors()
+
+    # Count comments per (video, sentiment).
+    grouped = (comments_df.groupby(['video_id', 'sentiment_label'])
+               .size().reset_index(name='count'))
+
+    # Keep the videos with the most analyzed comments.
+    top_ids = (comments_df['video_id'].value_counts().head(top_n).index.tolist())
+    grouped = grouped[grouped['video_id'].isin(top_ids)]
+
+    # Map video_id -> short title for readable axis labels.
+    title_map = {}
+    if video_df is not None and not video_df.empty:
+        for _, v in video_df.iterrows():
+            title_map[v['video_id']] = (str(v['title'])[:35] + '…') if len(str(v['title'])) > 35 else str(v['title'])
+    grouped['video'] = grouped['video_id'].map(title_map).fillna(grouped['video_id'])
+
+    fig = px.bar(
+        grouped,
+        x='video', y='count', color='sentiment_label',
+        title='Sentiment by Video',
+        labels={'video': 'Video', 'count': 'Comments', 'sentiment_label': 'Sentiment'},
+        barmode='group',
+        color_discrete_map=_sentiment_color_map(colors),
+    )
+    fig.update_layout(xaxis_tickangle=-35)
     return _apply_yt_studio_layout(fig)

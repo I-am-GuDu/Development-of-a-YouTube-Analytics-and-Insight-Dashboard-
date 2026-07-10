@@ -145,8 +145,61 @@ class YouTubeAPIHandler:
                 
                 # Rate limiting - don't exceed API quota
                 time.sleep(0.1)
-                
+
             except HttpError as e:
                 raise e
-        
+
         return all_video_details
+
+    def get_video_comments(self, video_id: str, max_results: int = 50) -> List[Dict]:
+        """
+        Retrieve top-level comments for a single video via the commentThreads
+        endpoint. Works with an API key (no OAuth needed for reads).
+
+        Returns a list of dicts:
+            {comment_id, video_id, author, text, like_count, published_at}
+        Returns an empty list if comments are disabled for the video.
+        """
+        comments = []
+        page_token = None
+
+        try:
+            while len(comments) < max_results:
+                request = self.youtube.commentThreads().list(
+                    part='snippet',
+                    videoId=video_id,
+                    maxResults=min(100, max_results - len(comments)),
+                    textFormat='plainText',
+                    order='relevance',
+                    pageToken=page_token
+                )
+                response = request.execute()
+
+                for item in response.get('items', []):
+                    top = item['snippet']['topLevelComment']['snippet']
+                    comments.append({
+                        'comment_id': item['id'],
+                        'video_id': video_id,
+                        'author': top.get('authorDisplayName', ''),
+                        'text': top.get('textDisplay', ''),
+                        'like_count': int(top.get('likeCount', 0)),
+                        'published_at': top.get('publishedAt')
+                    })
+
+                page_token = response.get('nextPageToken')
+                if not page_token:
+                    break
+
+                # Rate limiting - don't exceed API quota
+                time.sleep(0.1)
+
+            return comments[:max_results]
+
+        except HttpError as e:
+            # Comments disabled is common and expected — return what we have.
+            if e.resp.status == 403 and 'commentsDisabled' in str(e):
+                return comments
+            if e.resp.status == 403 and 'quotaExceeded' in str(e):
+                raise Exception("YouTube API quota exceeded")
+            # Any other error: return whatever we collected rather than crash.
+            return comments
