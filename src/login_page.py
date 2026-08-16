@@ -22,10 +22,6 @@ from auth import login, register_user
 from dashboard import theme as theme_tokens
 
 
-DEMO_EMAIL = 'demo@youtube.com'
-DEMO_PASSWORD = 'demo123'
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Styles
 # ─────────────────────────────────────────────────────────────────────────────
@@ -658,18 +654,6 @@ def _render_login_side():
             st.session_state['login_error'] = "Enter your email and password."
             st.rerun()
 
-    # Demo — outside the form so its own click drives the login.
-    if st.button("▶ Try the live demo — no account needed", key="demo_btn"):
-        success, message = login(DEMO_EMAIL, DEMO_PASSWORD)
-        if success:
-            # Clear login page state to prevent duplication on rerun
-            for key in ['login_mode', '_login_entered', 'login_error', 'login_success']:
-                st.session_state.pop(key, None)
-            st.rerun()
-        else:
-            st.session_state['login_error'] = message
-            st.rerun()
-
     st.markdown('<div class="login-divider"><span>new here</span></div>', unsafe_allow_html=True)
 
     # Real, visible button (styled as a centered link) — switches to sign-up.
@@ -688,7 +672,7 @@ def _render_signup_side():
     with st.form("signup_form", border=False):
         display_name = st.text_input("Display name", placeholder="Your name", key="signup_name")
         email = st.text_input("Email", placeholder="you@example.com", key="signup_email")
-        password = st.text_input("Password", placeholder="Min 5 characters",
+        password = st.text_input("Password", placeholder="Min 10 characters",
                                  type="password", key="signup_password")
         confirm = st.text_input("Confirm password", placeholder="Re-enter password",
                                 type="password", key="signup_confirm")
