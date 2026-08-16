@@ -13,6 +13,7 @@ from youtube_data_collection.api_handler import YouTubeAPIHandler
 from youtube_data_collection.data_processor import DataProcessor
 from datetime import datetime, timedelta
 from data_storage.storage_service import DataStorageService
+from data_storage.database import get_shared_manager
 from dashboard import charts, filters
 from dashboard import theme as theme_tokens
 from auth import is_logged_in, logout, get_current_user
@@ -501,6 +502,55 @@ def format_number(n):
     return f'{n:,.0f}'
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# CACHED RESOURCES & QUERIES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_storage_service():
+    """Storage service on the app-wide shared engine, with its own Session.
+
+    Each ``DataStorageService()`` used to build its own DatabaseManager, hence its
+    own engine and connection pool, on every rerun -- and ``__del__`` closes the
+    Session but never disposes the engine, so those pools leaked. Reusing the
+    shared engine keeps ``pool_pre_ping`` / ``pool_recycle`` meaningful and bounds
+    the number of open Postgres connections. The Session stays per-call because
+    SQLAlchemy Sessions are not thread-safe and Streamlit reruns on its own thread.
+    """
+    return DataStorageService(db_manager=get_shared_manager())
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_growth_forecast(channel_id, days_ahead=30):
+    """Growth forecast for a channel: 1 SQL read + a polynomial fit.
+
+    Cached because the callers sit inside ``st.tabs`` bodies, and Streamlit
+    executes every tab body on every rerun -- so this ran on each rerun of the
+    Analytics *and* Trend Analysis pages regardless of which tab was visible.
+    Keyed on channel_id, so switching channels still recomputes.
+    """
+    return get_storage_service().get_predictive_analytics().forecast_channel_growth(
+        channel_id, days_ahead=days_ahead)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_content_strategy(channel_id):
+    """Content-strategy recommendations: 1 SQL read + groupby aggregation."""
+    return get_storage_service().get_predictive_analytics().recommend_content_strategy(
+        channel_id)
+
+
+@st.cache_data(show_spinner=False)
+def _sidebar_intro_video_b64(path, mtime):
+    """base64 of the sidebar intro clip.
+
+    Profile_Pic.mp4 is ~1.19 MB, so read + encode was ~4 ms and a 1.6 MB string
+    on *every* rerun while no channel is loaded. ``mtime`` is in the cache key so
+    replacing the file busts the cache.
+    """
+    with open(path, 'rb') as video_file:
+        return base64.b64encode(video_file.read()).decode('ascii')
+
+
 @st.cache_data(ttl=600, show_spinner=False)
 def fetch_channel_data(api_key, channel_input):
     """Fetch and process channel + video data from YouTube API"""
@@ -536,7 +586,7 @@ def fetch_channel_data(api_key, channel_input):
 def save_to_database(processed_channel, video_df, engagement_metrics):
     """Save data to PostgreSQL, return success status"""
     try:
-        storage_service = DataStorageService()
+        storage_service = get_storage_service()
         storage_service.save_channel_data(processed_channel)
         storage_service.save_video_data(video_df)
         storage_service.save_analytics_summary(
@@ -627,9 +677,8 @@ def render_sidebar():
         else:
             intro_video_path = 'Profile_Pic.mp4'
             if os.path.exists(intro_video_path):
-                with open(intro_video_path, 'rb') as video_file:
-                    video_b64 = base64.b64encode(
-                        video_file.read()).decode('ascii')
+                video_b64 = _sidebar_intro_video_b64(
+                    intro_video_path, os.path.getmtime(intro_video_path))
 
                 st.markdown(f"""
                 <div class="sidebar-channel-info">
@@ -992,13 +1041,10 @@ def page_channel_analytics():
         """, unsafe_allow_html=True)
 
         try:
-            storage_service = DataStorageService()
-            predictive = storage_service.get_predictive_analytics()
             channel_id = channel_data.get('channel_id')
 
             if channel_id:
-                forecast = predictive.forecast_channel_growth(
-                    channel_id, days_ahead=30)
+                forecast = cached_growth_forecast(channel_id, days_ahead=30)
                 fig = charts.growth_forecast_chart(forecast)
                 if fig:
                     st.markdown('<div class="yt-chart-card">',
@@ -1024,7 +1070,7 @@ def page_channel_analytics():
                 st.markdown('<hr class="yt-divider">', unsafe_allow_html=True)
                 st.markdown(
                     '<div class="yt-chart-title">Content Strategy Recommendations</div>', unsafe_allow_html=True)
-                strategy = predictive.recommend_content_strategy(channel_id)
+                strategy = cached_content_strategy(channel_id)
                 for rec in strategy.get('recommendations', []):
                     if rec['type'] == 'content_type':
                         st.success(
@@ -1175,13 +1221,10 @@ def page_trend_analysis():
         st.markdown(
             '<div class="yt-chart-title">Growth Forecast</div>', unsafe_allow_html=True)
         try:
-            storage_service = DataStorageService()
-            predictive = storage_service.get_predictive_analytics()
             channel_id = channel_data.get('channel_id')
 
             if channel_id:
-                forecast = predictive.forecast_channel_growth(
-                    channel_id, days_ahead=30)
+                forecast = cached_growth_forecast(channel_id, days_ahead=30)
                 fig = charts.growth_forecast_chart(forecast)
                 if fig:
                     st.markdown('<div class="yt-chart-card">',
@@ -1202,7 +1245,7 @@ def page_trend_analysis():
                 st.markdown('<hr class="yt-divider">', unsafe_allow_html=True)
                 st.markdown(
                     '<div class="yt-chart-title">Content Strategy Recommendations</div>', unsafe_allow_html=True)
-                strategy = predictive.recommend_content_strategy(channel_id)
+                strategy = cached_content_strategy(channel_id)
                 for rec in strategy.get('recommendations', []):
                     if rec['type'] == 'content_type':
                         st.success(
@@ -1287,7 +1330,7 @@ def page_multi_channel():
                         "Need at least 2 valid channels after resolving. Make sure the channels have been analyzed individually first.")
                     return
 
-                storage_service = DataStorageService()
+                storage_service = get_storage_service()
                 analytics = storage_service.get_analytics_queries()
 
                 comparison_df = analytics.compare_multiple_channels(
@@ -1410,11 +1453,9 @@ def page_ai_insights():
         # Best-effort forecast from the DB to enrich the prompt.
         forecast = None
         try:
-            storage_service = DataStorageService()
-            predictive = storage_service.get_predictive_analytics()
             cid = channel_data.get('channel_id')
             if cid:
-                forecast = predictive.forecast_channel_growth(cid, days_ahead=30)
+                forecast = cached_growth_forecast(cid, days_ahead=30)
         except Exception:
             forecast = None
 
@@ -1506,7 +1547,7 @@ def page_comment_sentiment():
 
         # Best-effort persistence — charts render from memory regardless.
         try:
-            storage_service = DataStorageService()
+            storage_service = get_storage_service()
             storage_service.save_comment_data(comments_df)
         except Exception as e:
             st.caption(f"(Saved to session only — database write skipped: {e})")

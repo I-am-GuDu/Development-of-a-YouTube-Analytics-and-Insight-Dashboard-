@@ -12,8 +12,19 @@ from .analytics_queries import AnalyticsQueries
 logger = logging.getLogger(__name__)
 
 class DataStorageService:
-    def __init__(self):
-        self.db_manager = DatabaseManager()
+    def __init__(self, db_manager=None):
+        """Create a service bound to a DatabaseManager.
+
+        Pass ``db_manager`` to reuse an existing engine/connection pool (see
+        ``main.get_db_manager``). Omitting it builds a fresh DatabaseManager,
+        which also builds a brand-new SQLAlchemy engine and pool -- fine for
+        one-off scripts and tests, wasteful inside a Streamlit rerun.
+
+        Note the Session created here is per-instance on purpose: SQLAlchemy
+        Sessions are not thread-safe, and Streamlit runs each user session in
+        its own script thread. The *engine* is the part that is safe to share.
+        """
+        self.db_manager = db_manager or DatabaseManager()
         self.session = self.db_manager.get_session()
     
     def __del__(self):

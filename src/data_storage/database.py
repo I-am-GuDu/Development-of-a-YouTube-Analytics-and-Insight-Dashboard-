@@ -3,6 +3,7 @@ PostgreSQL Database Configuration and Connection Manager
 """
 import os
 import logging
+import streamlit as st
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
@@ -77,3 +78,19 @@ class DatabaseManager:
         except Exception as e:
             logger.error("Failed to initialize schema: %s", e)
             raise e
+
+
+@st.cache_resource(show_spinner=False)
+def get_shared_manager() -> DatabaseManager:
+    """The one DatabaseManager for the whole app process.
+
+    A DatabaseManager owns a SQLAlchemy Engine, and every Engine owns its own
+    connection pool. Building one per rerun (or per user session) meant a fresh
+    TCP+TLS+auth handshake to Postgres on first query and an orphaned pool
+    afterwards, which also made ``pool_pre_ping`` / ``pool_recycle`` pointless.
+
+    ``st.cache_resource`` is the correct scope here: an Engine is thread-safe and
+    intended to be shared process-wide. Sessions are *not*, so callers should
+    still create their own via ``get_session()``.
+    """
+    return DatabaseManager()

@@ -55,3 +55,6 @@ Documents/
 
 # Antigravity config
 pyrightconfig.json
+
+# Load testing
+loadtest/
