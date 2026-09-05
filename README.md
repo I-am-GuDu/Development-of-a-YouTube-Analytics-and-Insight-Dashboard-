@@ -55,9 +55,6 @@ These parts are already built:
 - `.github/workflows/secret-scan.yml`: Secret scanner that runs in GitHub Actions.
 - `Profile_Pic.mp4`: Video used in the sidebar profile area.
 
-### docs/
-
-- `docs/__init__.py`: Empty placeholder file.
 
 ### Documents/
 

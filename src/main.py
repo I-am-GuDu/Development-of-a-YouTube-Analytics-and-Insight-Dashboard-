@@ -943,8 +943,9 @@ def page_channel_analytics():
                 <div class="yt-chart-title">Content category mix</div>
                 <div class="yt-chart-subtitle">Views grouped by inferred category</div>
             """, unsafe_allow_html=True)
-            st.plotly_chart(charts.traffic_sources_donut(
-                video_df), use_container_width=True)
+            traffic_fig = charts.traffic_sources_donut(video_df)
+            if traffic_fig is not None:
+                st.plotly_chart(traffic_fig, use_container_width=True)
             render_traffic_source_bars(video_df)
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1616,7 +1617,7 @@ def page_comment_sentiment():
 def main():
     st.set_page_config(
         page_title="YouTube Analytics Dashboard",
-        page_icon="📊",
+        page_icon="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect x='28' y='103' width='456' height='306' rx='70' fill='%23ff0000'/%3E%3Cpath d='M203 180v152l132-76z' fill='%23fff' stroke='%23000' stroke-width='18' stroke-linejoin='round'/%3E%3C/svg%3E",
         layout="wide",
         initial_sidebar_state="expanded"
     )

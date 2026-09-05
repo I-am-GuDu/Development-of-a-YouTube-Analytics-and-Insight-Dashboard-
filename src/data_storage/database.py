@@ -39,11 +39,14 @@ class DatabaseManager:
             # Create connection string
             self.connection_string = f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
         
-        # Create engine
+        # Create engine (Tuned for 1,000 concurrent users)
         self.engine = create_engine(
             self.connection_string,
             pool_pre_ping=True,  # Validate connections before use
             pool_recycle=300,    # Recycle connections every 5 minutes
+            pool_size=100,       # Keep 100 connections open in the pool
+            max_overflow=200,    # Allow up to 200 additional temporary connections during massive traffic spikes
+            pool_timeout=30,     # Give up and show a clean error if a connection isn't available after 30 seconds
             echo=False           # Set to True for SQL debugging
         )
         

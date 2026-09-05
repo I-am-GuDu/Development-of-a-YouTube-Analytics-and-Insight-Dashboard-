@@ -13,7 +13,7 @@ from unittest.mock import patch, MagicMock
 
 def _mock_session_state(theme='dark'):
     """Return a dict-like mock for st.session_state."""
-    state = {'theme': theme}
+    state = {'theme_override': theme}
     return state
 
 
@@ -24,22 +24,22 @@ def _mock_session_state(theme='dark'):
 class TestGetThemeColors:
     """Tests for charts.get_theme_colors()"""
 
-    @patch('dashboard.charts.st')
+    @patch('dashboard.theme.st')
     def test_dark_theme(self, mock_st):
         mock_st.session_state = _mock_session_state('dark')
         from dashboard.charts import get_theme_colors
         colors = get_theme_colors()
 
-        assert colors['text_primary'] == '#FFFFFF'
+        assert colors['text_primary'] == '#F5F2FA'
         assert colors['template'] == 'plotly_dark'
 
-    @patch('dashboard.charts.st')
+    @patch('dashboard.theme.st')
     def test_light_theme(self, mock_st):
         mock_st.session_state = _mock_session_state('light')
         from dashboard.charts import get_theme_colors
         colors = get_theme_colors()
 
-        assert colors['text_primary'] == '#0f0f0f'
+        assert colors['text_primary'] == '#1A1426'
         assert colors['template'] == 'plotly_white'
 
 

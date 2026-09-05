@@ -47,7 +47,7 @@ def _best_posting_slot(video_df: pd.DataFrame):
 
 
 def _build_summary(channel_data: dict, metrics: dict, video_df: pd.DataFrame,
-                   forecast: dict = None) -> str:
+                   forecast: dict | None = None) -> str:
     """Compact text block fed to the model — small on purpose to keep cost low."""
     lines = []
     lines.append(f"Channel: {channel_data.get('title', 'Unknown')}")
@@ -95,7 +95,7 @@ def _build_summary(channel_data: dict, metrics: dict, video_df: pd.DataFrame,
 
 
 def generate_insights(channel_data: dict, metrics: dict, video_df: pd.DataFrame,
-                      forecast: dict = None) -> dict:
+                      forecast: dict | None = None) -> dict:
     """Generate a Markdown insight report.
 
     Returns ``{'ok': True, 'markdown': str}`` on success, or
