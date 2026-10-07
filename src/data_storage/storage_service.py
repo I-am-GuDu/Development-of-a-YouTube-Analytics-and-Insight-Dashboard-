@@ -12,7 +12,7 @@ from .analytics_queries import AnalyticsQueries
 logger = logging.getLogger(__name__)
 
 class DataStorageService:
-    def __init__(self, db_manager=None):
+    def __init__(self, db_manager=None, authorization=None):
         """Create a service bound to a DatabaseManager.
 
         Pass ``db_manager`` to reuse an existing engine/connection pool (see
@@ -24,6 +24,7 @@ class DataStorageService:
         Sessions are not thread-safe, and Streamlit runs each user session in
         its own script thread. The *engine* is the part that is safe to share.
         """
+        self._authorization = authorization or (lambda: None)
         self.db_manager = db_manager or DatabaseManager()
         self.session = self.db_manager.get_session()
     
@@ -34,10 +35,12 @@ class DataStorageService:
 
     def get_analytics_queries(self):
         """Get analytics query object for trend analysis"""
+        self._authorization()
         return AnalyticsQueries(self.db_manager)
     
     def save_channel_data(self, channel_data: dict):
         """Save processed channel data to database"""
+        self._authorization()
         try:
             from sqlalchemy import text
             
@@ -76,11 +79,12 @@ class DataStorageService:
             
         except SQLAlchemyError as e:
             self.session.rollback()
-            logger.error("Error saving channel data: %s", e)
+            logger.error("Error saving channel data")
             raise e
     
     def save_video_data(self, video_df: pd.DataFrame):
         """Save processed video data to database"""
+        self._authorization()
         try:
             from sqlalchemy import text
             import numpy as np
@@ -143,11 +147,12 @@ class DataStorageService:
             
         except SQLAlchemyError as e:
             self.session.rollback()
-            logger.error("Error saving video data: %s", e)
+            logger.error("Error saving video data")
             raise e
     
     def save_analytics_summary(self, channel_id: str, metrics: dict):
         """Save pre-computed analytics summary"""
+        self._authorization()
         try:
             from sqlalchemy import text
             import numpy as np
@@ -203,10 +208,11 @@ class DataStorageService:
             
         except SQLAlchemyError as e:
             self.session.rollback()
-            logger.error("Error saving analytics summary: %s", e)
+            logger.error("Error saving analytics summary")
             raise e
         
     def save_comment_data(self, comments_df: pd.DataFrame):
+        self._authorization()
         """Save comments + their AI sentiment labels to the database.
 
         Expects a DataFrame with columns: comment_id, video_id, channel_id,
@@ -266,10 +272,11 @@ class DataStorageService:
 
         except SQLAlchemyError as e:
             self.session.rollback()
-            logger.error("Error saving comment data: %s", e)
+            logger.error("Error saving comment data")
             raise e
 
     def get_predictive_analytics(self):
         """Get predictive analytics object for forecasting and recommendations"""
+        self._authorization()
         from .predictive_analytics import PredictiveAnalytics
         return PredictiveAnalytics(self.db_manager)

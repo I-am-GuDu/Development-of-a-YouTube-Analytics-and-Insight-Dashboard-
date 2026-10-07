@@ -5,6 +5,7 @@ import os
 import logging
 import streamlit as st
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
@@ -16,6 +17,8 @@ load_dotenv()
 def _get_secret(key: str, default=None):
     """Read a secret from st.secrets (Streamlit Cloud) or os.getenv (local)."""
     try:
+        if key in os.environ:
+            return os.environ[key]
         import streamlit as st
         return st.secrets[key]
     except Exception:
@@ -26,7 +29,7 @@ class DatabaseManager:
         # Try st.secrets first (Streamlit Cloud), then fall back to os.getenv (local .env)
         self.database_url = _get_secret('DATABASE_URL')
         if self.database_url:
-            self.connection_string = self.database_url
+            self.connection_string = make_url(self.database_url)
         else:
             self.db_host = _get_secret('DB_HOST', 'localhost')
             self.db_port = _get_secret('DB_PORT', '5432')
@@ -37,7 +40,17 @@ class DatabaseManager:
                 raise ValueError("DB_PASSWORD is not set. Add it to your .env file or Streamlit Cloud secrets.")
 
             # Create connection string
-            self.connection_string = f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+            self.connection_string = URL.create(
+                "postgresql", username=self.db_user, password=self.db_password,
+                host=self.db_host, port=int(self.db_port), database=self.db_name,
+            )
+
+        if os.getenv("APP_ENV") == "production":
+            query = self.connection_string.query
+            root_cert = query.get("sslrootcert", "")
+            if (query.get("sslmode") != "verify-full" or not os.path.isabs(root_cert)
+                    or not os.path.isfile(root_cert)):
+                raise ValueError("Production database connections require verified TLS and a trusted CA file.")
         
         # Create engine (Tuned for 1,000 concurrent users)
         self.engine = create_engine(
@@ -47,7 +60,8 @@ class DatabaseManager:
             pool_size=100,       # Keep 100 connections open in the pool
             max_overflow=200,    # Allow up to 200 additional temporary connections during massive traffic spikes
             pool_timeout=30,     # Give up and show a clean error if a connection isn't available after 30 seconds
-            echo=False           # Set to True for SQL debugging
+            echo=False,
+            hide_parameters=True,
         )
         
         # Create session factory
@@ -64,7 +78,7 @@ class DatabaseManager:
                 conn.execute(text("SELECT 1"))
             return True
         except SQLAlchemyError as e:
-            logger.error("Database connection failed: %s", e)
+            logger.error("Database connection failed")
             return False
     
     def initialize_schema(self):
@@ -79,7 +93,7 @@ class DatabaseManager:
                 conn.commit()
             logger.info("Database schema initialized successfully")
         except Exception as e:
-            logger.error("Failed to initialize schema: %s", e)
+            logger.error("Failed to initialize schema")
             raise e
 
 

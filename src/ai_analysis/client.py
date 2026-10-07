@@ -69,7 +69,7 @@ def _resolve_account_id(token: str):
             _account_id_cache = accounts[0]["id"]
             return _account_id_cache
     except Exception as e:
-        logger.warning("Could not auto-detect Cloudflare account id: %s", e)
+        logger.warning("Could not auto-detect Cloudflare account id")
     return None
 
 
@@ -121,4 +121,4 @@ def chat(messages: list, max_tokens: int = 1024, temperature: float = 0.3) -> st
     if isinstance(data, dict) and data.get("choices"):
         return _to_str(data["choices"][0]["message"]["content"])
 
-    raise RuntimeError(f"Unexpected Cloudflare AI response: {str(data)[:200]}")
+    raise RuntimeError("Unexpected Cloudflare AI response")

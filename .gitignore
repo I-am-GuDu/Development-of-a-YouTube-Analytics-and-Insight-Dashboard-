@@ -52,9 +52,22 @@ Thumbs.db
 
 # Documents (local reports/schedules — not needed in repo)
 Documents/
+docs/
 
 # Antigravity config
 pyrightconfig.json
 
 # Load testing
 loadtest/
+node_modules
+.streamlit/secrets.toml
+
+# Nested deployment secrets and generated gateway files
+**/.env
+**/.env.*
+!**/.env.example
+.cache/
+auth-gateway/.next/
+auth-gateway/next-env.d.ts
+auth-gateway/tsconfig.tsbuildinfo
+secret-scan-report.json

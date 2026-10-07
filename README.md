@@ -88,7 +88,8 @@ These parts are already built:
 
 ### tests/
 
-- `tests/__init__.py`: Empty placeholder file (test cases are not added yet).
+- `tests/`: Python data-processing, storage and session-validation tests.
+- `auth-gateway/tests/`: Gateway request-policy and session-revocation tests.
 
 ## Pages in the app
 
@@ -154,38 +155,61 @@ DB_PORT=5432
 DB_NAME=youtube_analytics
 DB_USER=postgres
 DB_PASSWORD=your_password_here
+NEON_AUTH_URL=https://your-neon-auth-host/neondb/auth
 ```
+
+### Local authentication
+
+Google and email sign-in now use one Neon Auth gateway. The gateway preserves
+this app's login design and establishes Secure, HttpOnly browser cookies.
+Streamlit checks the session through a private loopback endpoint on every rerun
+and before database operations. The old independent `st.login("google")` flow
+has been removed from the application code.
+
+Build the gateway with `npm ci` and `npm run build` in `auth-gateway`, then run
+this from the repository root for real local email and Google login:
+
+```powershell
+.\venv\Scripts\python.exe scripts/run_local.py
+```
+
+Open **http://localhost:3001/auth/sign-in**. Keep the terminal open; Ctrl+C stops
+the three local services. The launcher uses the private `.env` Neon settings
+and creates auth secrets in memory. The [local setup and testing guide](auth-gateway/LOCAL_SETUP.md)
+covers Neon settings, verification, password reset and troubleshooting.
+Starting `streamlit run` alone will not authenticate. `run_local_preview.py`
+is a separate offline layout preview that deliberately denies login.
+
+The `.streamlit/config.toml` defaults target localhost. Private `secrets.toml`
+is optional; its previous `[auth.google]` block is unused by the new flow.
+Deployment changes belong to the EC2 teammate. The gateway, proxy and Streamlit
+must be deployed together; see the example [EC2 release guide](deploy/README.md).
+
+Production origin: `https://ytvideoanalysis.studio`. Google sign-in is disabled
+by default pending provider setup, account-linking review and staging tests.
+Google client credentials are configured in Neon; they do not belong in
+Streamlit secrets or browser code. Store application runtime secrets in AWS
+Secrets Manager and retrieve them using the EC2 instance role.
 
 5. Create the PostgreSQL database (example name: `youtube_analytics`).
 
 6. Run SQL schema file `src/data_storage/schema.sql` on that database. (Re-run it
    after updating — it now also creates the `video_comments` table used by the
-   Comment Sentiment feature; `IF NOT EXISTS` makes re-running safe.)
+    Comment Sentiment feature. Legacy `users` and `oauth_users` records are
+    retained; the new login flow does not merge or delete them.)
 
 7. Start app:
 
 ```powershell
-streamlit run src/main.py
+.\venv\Scripts\python.exe scripts/run_local.py
 ```
 
-## Deploying on Streamlit Community Cloud
+## Deployment
 
-1. Set the entrypoint file to `src/main.py`.
-2. Push this repo with the updated `requirements.txt`.
-3. In Streamlit Community Cloud, open **Advanced settings** and add your secrets as root-level keys so the app can read them through `os.getenv()`:
-
-```toml
-YOUTUBE_API_KEY = "your_key_here"
-CLOUDFLARE_API_TOKEN = "your_cloudflare_token_here"
-CLOUDFLARE_ACCOUNT_ID = "your_cloudflare_account_id"
-DB_HOST = "your_db_host"
-DB_PORT = "5432"
-DB_NAME = "youtube_analytics"
-DB_USER = "postgres"
-DB_PASSWORD = "your_password_here"
-```
-
-The dependency pin was updated so Community Cloud can install a Python-3.14-compatible Pillow wheel instead of trying to build `Pillow==10.4.0` from source.
+This auth integration targets Ubuntu EC2 behind Nginx. See
+[deploy/README.md](deploy/README.md) for service files, secret injection, provider
+settings, migration checks and release tests. The former standalone Streamlit
+Community Cloud instructions do not cover the gateway boundary.
 
 ## Secret safety checks
 

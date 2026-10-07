@@ -1,0 +1,135 @@
+        .sr-scene {
+            position: relative;
+            background: linear-gradient(158deg, #151021 0%, #0C0814 100%);
+            border-right: 1px solid rgba(167,139,250,0.18);
+            border-radius: 0;
+            padding: clamp(10px, 1.3vh, 20px) clamp(30px, 3.4vw, 48px);
+            overflow: hidden;
+            color: #F5F2FA;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0;
+        }
+        /* Anchor scene content to the top on shorter viewports so the eyebrow /
+           LIVE row is never clipped by overflow:hidden. */
+        @media (max-height: 820px) {
+            .sr-scene { justify-content: flex-start; }
+        }
+        .sr-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: clamp(14px, 2.4vh, 26px); }
+        .sr-eyebrow {
+            font-size: 11px; font-weight: 600; letter-spacing: 0.2em;
+            text-transform: uppercase; color: #A78BFA;
+        }
+        .sr-live {
+            display: inline-flex; align-items: center; gap: 7px;
+            font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600;
+            letter-spacing: 0.08em; color: #FFD3D3;
+            background: rgba(255,75,75,0.10); border: 1px solid rgba(255,75,75,0.32);
+            border-radius: 999px; padding: 4px 10px; white-space: nowrap;
+        }
+        .sr-live-dot {
+            width: 7px; height: 7px; border-radius: 50%; background: #FF4B4B;
+            box-shadow: 0 0 0 0 rgba(255,75,75,0.6);
+            animation: sr-pulse 1.8s ease-out infinite;
+        }
+        @keyframes sr-pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(255,75,75,0.55); }
+            70%  { box-shadow: 0 0 0 8px rgba(255,75,75,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,75,75,0); }
+        }
+        .sr-h1 {
+            font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+            font-size: clamp(26px, 2.6vw, 34px); line-height: 1.1; letter-spacing: -0.025em;
+            margin: 0 0 clamp(5px, 0.9vh, 9px); color: #F5F2FA;
+        }
+        .sr-grad {
+            background: linear-gradient(100deg, #A78BFA, #5B6CFF);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent; color: transparent;
+        }
+        .sr-sub { font-size: 14px; line-height: 1.45; color: #A39CB5; margin: 0 0 clamp(10px, 1.5vh, 16px); max-width: 40ch; }
+
+        /* Retention curve */
+        .sr-chartwrap { position: relative; width: 100%; margin-bottom: 4px; cursor: crosshair; }
+        /* SVG uses preserveAspectRatio="none", so it stretches to whatever height
+           we give it. Cap the height (shorter) while width stays 100% (wider) —
+           this is what makes the panel read landscape like the reference. */
+        .sr-chart { display: block; width: 100%; height: clamp(88px, 13vh, 128px); overflow: visible; }
+        #sr-path { filter: drop-shadow(0 4px 12px rgba(124,58,237,0.55)); }
+        .sr-grid-line { stroke: rgba(167,139,250,0.10); stroke-width: 1; }
+        .sr-playhead {
+            position: absolute; top: 0; left: 40%; bottom: 26px;
+            width: 1px; pointer-events: none;
+            background: linear-gradient(rgba(245,242,250,0.0), rgba(245,242,250,0.5) 30%, rgba(245,242,250,0.5));
+        }
+        .sr-ph-dot {
+            position: absolute; width: 11px; height: 11px; border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none;
+            background: #FEF08A; border: 2px solid #EAB308;
+            box-shadow: 0 0 14px rgba(234,179,8,0.8);
+        }
+        .sr-tip {
+            position: absolute; transform: translate(-50%, -130%);
+            font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 600;
+            color: #F5F2FA;
+            background: rgba(14,10,22,0.92); border: 1px solid rgba(167,139,250,0.30);
+            border-radius: 8px; padding: 5px 9px; white-space: nowrap; pointer-events: none;
+        }
+        .sr-tip b { color: #FEF08A; font-weight: 700; }
+
+        /* YouTube-style timeline (inside chart) */
+        .sr-timeline { margin-top: 4px; }
+        .sr-track {
+            position: relative; height: 5px; border-radius: 100px;
+            background: rgba(245,242,250,0.12); overflow: hidden;
+        }
+        .sr-progress {
+            position: absolute; left: 0; top: 0; height: 100%; width: 42%;
+            border-radius: 100px; background: linear-gradient(90deg, #FF4B4B, #FF7B54);
+        }
+        .sr-tick {
+            position: absolute; top: 0; bottom: 0; width: 2px;
+            background: rgba(14,10,22,0.8);
+        }
+        .sr-times {
+            display: flex; justify-content: space-between; margin-top: 7px;
+            font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #736B85;
+        }
+
+        /* KPI row */
+        .sr-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: clamp(10px, 1.4vh, 16px); }
+        .sr-kpi {
+            border: 1px solid rgba(167,139,250,0.18); border-radius: 14px;
+            padding: clamp(7px, 1vh, 10px) 15px clamp(6px, 0.9vh, 9px); background: rgba(167,139,250,0.05);
+        }
+        .sr-kpi-val {
+            font-family: 'JetBrains Mono', monospace; font-weight: 700;
+            font-size: 21px; color: #F5F2FA; letter-spacing: -0.02em;
+        }
+        .sr-kpi-val .up { color: #34D399; font-size: 13px; }
+        .sr-kpi-label {
+            margin-top: 3px; font-size: 10.5px; font-weight: 500; letter-spacing: 0.08em;
+            text-transform: uppercase; color: #736B85;
+        }
+
+        /* Rotating captions */
+        .sr-captions { position: relative; height: 20px; margin-top: clamp(10px, 1.5vh, 16px); }
+        .sr-captions span {
+            position: absolute; inset: 0; opacity: 0;
+            font-size: 12.5px; color: #A39CB5;
+            display: flex; align-items: center; gap: 8px;
+            animation: sr-cap 12s linear infinite;
+        }
+        .sr-captions span::before { content: '▸'; color: #EAB308; font-size: 11px; }
+        .sr-captions span:nth-child(2) { animation-delay: 4s; }
+        .sr-captions span:nth-child(3) { animation-delay: 8s; }
+        @keyframes sr-cap {
+            0%   { opacity: 0; transform: translateY(8px); }
+            4%   { opacity: 1; transform: translateY(0); }
+            30%  { opacity: 1; transform: translateY(0); }
+            34%  { opacity: 0; transform: translateY(-8px); }
+            100% { opacity: 0; }
+        }
+

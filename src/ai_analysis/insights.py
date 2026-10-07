@@ -120,5 +120,5 @@ def generate_insights(channel_data: dict, metrics: dict, video_df: pd.DataFrame,
             return {"ok": False, "error": "Empty response from the model."}
         return {"ok": True, "markdown": markdown}
     except Exception as e:
-        logger.error("Insight generation failed: %s", e)
-        return {"ok": False, "error": str(e)}
+        logger.error("Insight generation failed")
+        return {"ok": False, "error": "The AI service is temporarily unavailable. Please try again."}

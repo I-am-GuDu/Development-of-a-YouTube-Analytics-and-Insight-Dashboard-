@@ -359,7 +359,7 @@ class AnalyticsQueries:
                 df = pd.read_sql(query, conn, params=params)
             return df
         except Exception as e:
-            logger.error("Error comparing channels: %s", e)
+            logger.error("Error comparing channels")
             return pd.DataFrame()
 
     def get_cross_channel_performance_rankings(self, channel_ids: List[str], metric: str = 'engagement_rate') -> pd.DataFrame:
@@ -403,7 +403,7 @@ class AnalyticsQueries:
                 df = pd.read_sql(query, conn, params=params)
             return df
         except Exception as e:
-            logger.error("Error ranking channels: %s", e)
+            logger.error("Error ranking channels")
             return pd.DataFrame()
 
     def get_competitive_benchmarking_report(self, primary_channel_id: str, competitor_channel_ids: List[str]) -> Dict:
@@ -474,7 +474,7 @@ class AnalyticsQueries:
             }
             
         except Exception as e:
-            logger.error("Error generating benchmarking report: %s", e)
+            logger.error("Error generating benchmarking report")
             return {
                 'comparison_table': [],
                 'primary_channel_metrics': {},
@@ -524,7 +524,7 @@ class AnalyticsQueries:
                 return pd.DataFrame()
                 
         except Exception as e:
-            logger.error("Error comparing content strategies: %s", e)
+            logger.error("Error comparing content strategies")
             return pd.DataFrame()
 
     def _add_content_categories(self, df: pd.DataFrame) -> pd.DataFrame:

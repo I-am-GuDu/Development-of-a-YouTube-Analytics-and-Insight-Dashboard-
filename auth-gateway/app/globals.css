@@ -1,0 +1,48 @@
+@import "./scene.css";
+
+* {box-sizing: border-box;}
+body {margin: 0; font-family: Inter, system-ui, sans-serif;}
+.auth-page {
+  --page: #0e0a16; --panel: #1a1426; --ink: #f5f2fa; --muted: #a39cb5;
+  --input: #221a33; --line: rgba(167,139,250,.22); --focus: #a78bfa;
+  min-height: 100svh; display: grid; place-items: center; padding: 30px 4.5vw;
+  color: var(--ink); background: radial-gradient(at 10% 15%,rgba(124,58,237,.12),transparent 50%),var(--page);
+}
+.auth-page.light {--page: #f6f4fb; --panel: #fff; --ink: #1a1426; --muted: #6b6480; --input: #fff; --line: #ddd5ee; --focus: #7c3aed;}
+.auth-panel {position: relative; width: 100%; max-width: 1400px; min-height: 640px; display: grid; grid-template-columns: 11fr 9fr; border: 1px solid var(--line); border-radius: 28px; background: var(--panel); padding: 32px 18px; overflow: hidden;}
+.scene-side {display: flex; min-width: 0;}
+.scene-side .sr-scene {width: 100%; background: #0e0a16; padding: 48px; justify-content: center;}
+.scene-side .sr-h1 {font-size: clamp(28px,3vw,44px); line-height: 1.2; margin-bottom: 24px;}
+.scene-side .sr-sub {max-width: 38ch; margin-bottom: 24px;}
+.scene-side .sr-chart {height: 135px;}
+.sr-ph-dot,.sr-tip,.sr-playhead {display: none;}
+.scene-side .sr-kpis {margin-top: 24px;}
+.scene-side .sr-captions {margin-top: 20px;}
+.form-side {padding: 34px clamp(28px,4.5vw,90px); display: flex; flex-direction: column; justify-content: center;}
+.sr-logo {display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: linear-gradient(135deg,#7c3aed,#a78bfa); color: #fff; box-shadow: 0 10px 28px rgba(124,58,237,.3);}
+h2 {font-family: "Space Grotesk",Inter,system-ui,sans-serif; font-size: 34px; line-height: 1.2; margin: 26px 0 4px;}
+.form-sub {font-size: 14px; color: var(--muted); margin: 14px 0 20px;}
+form {display: grid; gap: 13px;}
+.field {display: grid; gap: 7px;}
+label {display: grid; gap: 7px; font-size: 13px; color: var(--muted);}
+input {width: 100%; min-width: 0; height: 42px; border: 1px solid var(--line); border-radius: 12px; background: var(--input); color: var(--ink); padding: 10px 16px; font: inherit; font-size: 15px;}
+input:focus-visible,button:focus-visible,a:focus-visible {outline: 2px solid var(--focus); outline-offset: 3px;}
+button,a {touch-action: manipulation;}
+button {cursor: pointer; font: inherit;}
+button:disabled {cursor: wait; opacity: .55;}
+.google-button {width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: 12px; background: var(--input); color: var(--ink); font-size: 14px;}
+.primary {justify-self: start; min-height: 46px; border: 0; border-radius: 12px; color: #fff; background: #7c3aed; padding: 12px 22px; font-weight: 600; box-shadow: 0 8px 26px rgba(124,58,237,.3); margin-top: 1px;}
+.password-input {display: flex; border: 1px solid var(--line); border-radius: 12px; background: var(--input); overflow: hidden;}
+.password-input input {border: 0;}
+.password-input button {border: 0; background: transparent; color: var(--ink); padding: 0 16px;}
+.divider {display: flex; align-items: center; gap: 14px; margin: 30px 0 22px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .15em;}
+.divider::before,.divider::after {content: ""; height: 1px; background: var(--line); flex: 1;}
+.switch-link,.text-button {color: var(--muted); font-size: 14px; text-align: center; text-decoration: none; margin: 9px 0;}
+.text-button {background: transparent; border: 0;}
+.secondary-links {display: flex; justify-content: space-between; gap: 12px; margin-top: 18px;}
+.secondary-links a {font-size: 12px; color: var(--muted);}
+.form-message {color: var(--ink); background: var(--input); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.5;}
+.hint {font-size: 12px; color: var(--muted); margin: 9px 0 0;}
+.theme-toggle {position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-size: 23px;}
+@media(max-width: 900px) {.auth-page {padding: 20px;} .auth-panel {grid-template-columns: 1fr; padding: 14px; min-height: auto;} .scene-side {display: none;} .form-side {padding: 34px 24px;} h2 {font-size: 30px;}}
+@media(prefers-reduced-motion: reduce) {*,*::before,*::after {animation: none !important; transition: none !important;} .sr-captions span:first-child {opacity: 1;}}

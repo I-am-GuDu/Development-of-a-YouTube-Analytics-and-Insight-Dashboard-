@@ -65,7 +65,7 @@ def _classify_batch(texts: list) -> list:
             raw = raw[start_idx:end_idx + 1]
         data = json.loads(raw)
     except Exception as e:
-        logger.warning("Sentiment batch failed, using neutral fallback: %s", e)
+        logger.warning("Sentiment batch failed, using neutral fallback")
         # Log the raw reply to help debug if needed
         logger.debug("Raw reply that failed to parse: %s", reply if 'reply' in locals() else 'None')
         return fallback

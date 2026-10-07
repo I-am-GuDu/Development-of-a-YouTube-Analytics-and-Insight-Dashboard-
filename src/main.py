@@ -16,7 +16,7 @@ from data_storage.storage_service import DataStorageService
 from data_storage.database import get_shared_manager
 from dashboard import charts, filters
 from dashboard import theme as theme_tokens
-from auth import is_logged_in, logout, get_current_user
+from auth import is_logged_in, logout, render_auth_bridge, require_authenticated
 from login_page import render_login_page
 from ai_analysis import insights as ai_insights
 from ai_analysis import sentiment as ai_sentiment
@@ -516,11 +516,17 @@ def get_storage_service():
     the number of open Postgres connections. The Session stays per-call because
     SQLAlchemy Sessions are not thread-safe and Streamlit reruns on its own thread.
     """
-    return DataStorageService(db_manager=get_shared_manager())
+    require_authenticated()
+    return DataStorageService(db_manager=get_shared_manager(), authorization=require_authenticated)
+
+
+def cached_growth_forecast(channel_id, days_ahead=30):
+    user = require_authenticated()
+    return _cached_growth_forecast(user["id"], channel_id, days_ahead)
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def cached_growth_forecast(channel_id, days_ahead=30):
+def _cached_growth_forecast(user_id, channel_id, days_ahead=30):
     """Growth forecast for a channel: 1 SQL read + a polynomial fit.
 
     Cached because the callers sit inside ``st.tabs`` bodies, and Streamlit
@@ -532,8 +538,13 @@ def cached_growth_forecast(channel_id, days_ahead=30):
         channel_id, days_ahead=days_ahead)
 
 
-@st.cache_data(ttl=300, show_spinner=False)
 def cached_content_strategy(channel_id):
+    user = require_authenticated()
+    return _cached_content_strategy(user["id"], channel_id)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_content_strategy(user_id, channel_id):
     """Content-strategy recommendations: 1 SQL read + groupby aggregation."""
     return get_storage_service().get_predictive_analytics().recommend_content_strategy(
         channel_id)
@@ -551,8 +562,15 @@ def _sidebar_intro_video_b64(path, mtime):
         return base64.b64encode(video_file.read()).decode('ascii')
 
 
-@st.cache_data(ttl=600, show_spinner=False)
 def fetch_channel_data(api_key, channel_input):
+    require_authenticated()
+    result = _fetch_channel_data(api_key, channel_input)
+    require_authenticated()
+    return result
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _fetch_channel_data(api_key, channel_input):
     """Fetch and process channel + video data from YouTube API"""
     handler = YouTubeAPIHandler()
     processor = DataProcessor()
@@ -593,7 +611,7 @@ def save_to_database(processed_channel, video_df, engagement_metrics):
             processed_channel['channel_id'], engagement_metrics)
         return True, "Data saved to database successfully!"
     except Exception as e:
-        return False, f"Could not save to database: {str(e)}"
+        return False, "Could not save to database. Please try again later."
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -726,7 +744,7 @@ def render_sidebar():
 
         # ── User info & Logout ──────────────────────────────
         st.markdown('<hr class="yt-divider">', unsafe_allow_html=True)
-        user = get_current_user()
+        user = require_authenticated()
         if user:
             st.caption(f"👤 {user['display_name']}")
             st.caption(f"✉️ {user['email']}")
@@ -794,7 +812,7 @@ def page_channel_analytics():
         except ValueError as ve:
             st.error(f"Error: {str(ve)}")
         except Exception as e:
-            st.error(f"Failed to fetch data: {str(e)}")
+            st.error("Unable to fetch channel data. Check the channel ID and try again.")
 
     # If data is loaded, show the analytics dashboard
     if 'video_df' not in st.session_state:
@@ -1084,7 +1102,7 @@ def page_channel_analytics():
                     st.info(
                         "Not enough data to generate content strategy recommendations.")
         except Exception as e:
-            st.warning(f"Predictive analytics unavailable: {str(e)}")
+            st.warning("Predictive analytics are temporarily unavailable.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1259,7 +1277,7 @@ def page_trend_analysis():
                     st.info(
                         "Not enough data to generate content strategy recommendations.")
         except Exception as e:
-            st.warning(f"Predictive analytics unavailable: {str(e)}")
+            st.warning("Predictive analytics are temporarily unavailable.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1418,7 +1436,7 @@ def page_multi_channel():
                                 st.write(f"⚠️ {dis}")
 
         except Exception as e:
-            st.error(f"Failed to compare channels: {str(e)}")
+            st.error("Unable to compare channels. Please try again.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1461,8 +1479,10 @@ def page_ai_insights():
             forecast = None
 
         with st.spinner("Analyzing your channel..."):
+            require_authenticated()
             result = ai_insights.generate_insights(
                 channel_data, engagement_metrics, video_df, forecast)
+        require_authenticated()
         st.session_state['ai_insights_result'] = result
 
     result = st.session_state.get('ai_insights_result')
@@ -1544,6 +1564,7 @@ def page_comment_sentiment():
         comments_df['channel_id'] = channel_data.get('channel_id')
 
         with st.spinner(f"Classifying {len(comments_df)} comments..."):
+            require_authenticated()
             comments_df = ai_sentiment.analyze_comment_sentiment(comments_df)
 
         # Best-effort persistence — charts render from memory regardless.
@@ -1614,6 +1635,14 @@ def page_comment_sentiment():
 # MAIN APP ENTRY POINT
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@st.fragment(run_every="60s")
+def _session_monitor():
+    # This timer supplements validation on every rerun and protected action.
+    # Background-tab timers can be delayed; staging must measure that behavior.
+    if not is_logged_in():
+        st.rerun()
+
+
 def main():
     st.set_page_config(
         page_title="YouTube Analytics Dashboard",
@@ -1627,7 +1656,11 @@ def main():
     # ══════════════════════════════════════════════════════════════════════
     if not is_logged_in():
         render_login_page()
+        render_auth_bridge()
         return
+
+    render_auth_bridge()
+    _session_monitor()
 
     # ══════════════════════════════════════════════════════════════════════
     # AUTHENTICATED — render the full dashboard

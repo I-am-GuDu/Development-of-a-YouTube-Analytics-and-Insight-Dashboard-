@@ -14,6 +14,34 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
+-- Google/OIDC identities. Never store provider passwords or OAuth tokens here.
+CREATE TABLE IF NOT EXISTS oauth_users (
+    id SERIAL PRIMARY KEY,
+    provider VARCHAR(50) NOT NULL,
+    provider_user_id VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    display_name VARCHAR(255) NOT NULL DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (provider, provider_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_users_email ON oauth_users(email);
+
+-- App sessions. Only a SHA-256 hash of the browser cookie token is stored.
+-- user_key is 'local:<users.id>' or 'google:<oauth_users.id>'.
+CREATE TABLE IF NOT EXISTS user_sessions (
+    token_hash CHAR(64) PRIMARY KEY,
+    user_key VARCHAR(80) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    display_name VARCHAR(255) NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_key);
+
 -- Create channels table
 CREATE TABLE IF NOT EXISTS channels (
     channel_id VARCHAR(50) PRIMARY KEY,

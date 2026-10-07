@@ -12,13 +12,15 @@ Design constraints honoured from the codebase:
     `.block-container` itself — otherwise it becomes the containing block for
     the fixed theme toggle and traps it.
   * Public entry point stays `render_login_page()`; theme toggle still called.
-  * Session keys preserved: login_mode, login_error, login_success.
-  * No third-party component libs — pure Streamlit widgets + CSS/HTML/JS.
+  * Sign-in / sign-up run in Streamlit itself (see auth.py): email + password
+    against the app's users table, or "Continue with Google" via Neon Auth.
 """
 import streamlit as st
 import streamlit.components.v1 as components
 
-from auth import login, register_user
+from auth import (google_available, login, pending_google_redirect, register_user,
+                  start_google_sign_in)
+from html import escape
 from dashboard import theme as theme_tokens
 
 
@@ -392,6 +394,32 @@ def _inject_login_styles(mode='light'):
             outline: none !important; box-shadow: 0 0 0 3px rgba(234,179,8,0.35) !important;
         }}
 
+        /* "Continue with Google" — same surface as the inputs, Google "G" mark */
+        .st-key-google_btn {{ width: 100% !important; }}
+        .st-key-google_btn button {{
+            width: 100% !important;
+            background: {t['input_bg']} !important;
+            border: 1px solid {t['input_border']} !important;
+            border-radius: 12px !important;
+            color: {t['text_body']} !important;
+            font-family: 'Inter', sans-serif !important;
+            font-size: 14px !important; font-weight: 600 !important;
+            padding: clamp(9px, 1.4vh, 12px) 20px !important; box-shadow: none !important;
+            display: flex !important; align-items: center; justify-content: center; gap: 10px;
+            transition: border-color .18s ease, background-color .35s ease, color .35s ease !important;
+        }}
+        .st-key-google_btn button::before {{
+            content: ''; width: 18px; height: 18px; flex: none;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23FFC107' d='M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z'/%3E%3Cpath fill='%23FF3D00' d='M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z'/%3E%3Cpath fill='%234CAF50' d='M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z'/%3E%3Cpath fill='%231976D2' d='M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z'/%3E%3C/svg%3E") center / contain no-repeat;
+        }}
+        .st-key-google_btn button:hover {{ border-color: {t['brand']} !important; }}
+        .st-key-google_btn button:focus-visible {{
+            outline: none !important; box-shadow: 0 0 0 3px {t['focus_ring']} !important;
+        }}
+        .st-key-google_btn button:disabled {{ opacity: .55; cursor: not-allowed; }}
+        .sr-hint {{ font-size: 12px; color: {t['text_faint']}; margin: 6px 0 0; text-align: center; }}
+        .sr-hint a {{ color: {t['brand']}; }}
+
         /* Mode-switch buttons ("Sign up" / "Back to sign in") — real Streamlit
            buttons styled as a centered inline link (matches ref .switch). */
         .st-key-switch_to_signup, .st-key-switch_to_login {{
@@ -618,11 +646,11 @@ def _form_header_html(title, subtitle):
 
 def _show_messages():
     if st.session_state.get('login_error'):
-        st.markdown(f'<div class="login-note login-err">{st.session_state["login_error"]}</div>',
+        st.markdown(f'<div class="login-note login-err">{escape(str(st.session_state["login_error"]))}</div>',
                     unsafe_allow_html=True)
         st.session_state['login_error'] = ''
     if st.session_state.get('login_success'):
-        st.markdown(f'<div class="login-note login-ok">{st.session_state["login_success"]}</div>',
+        st.markdown(f'<div class="login-note login-ok">{escape(str(st.session_state["login_success"]))}</div>',
                     unsafe_allow_html=True)
         st.session_state['login_success'] = ''
 
@@ -631,37 +659,58 @@ def _show_messages():
 # Form sides
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _switch_mode(mode):
+    st.session_state['login_mode'] = mode
+    st.session_state['login_error'] = ''
+    st.session_state['login_success'] = ''
+    st.rerun()
+
+
+def _render_google_option():
+    """"Continue with Google" (Neon Auth) + "or" divider, above the email form."""
+    redirect = pending_google_redirect()
+    if redirect:
+        st.markdown(
+            '<p class="sr-hint">Opening Google… If nothing happens, '
+            f'<a href="{escape(redirect, quote=True)}" target="_self">continue to Google</a>.</p>',
+            unsafe_allow_html=True)
+    enabled = google_available()
+    if st.button("Continue with Google", key="google_btn", disabled=not enabled or bool(redirect)):
+        start_google_sign_in()
+        st.rerun()
+    if not enabled:
+        st.markdown('<p class="sr-hint">Google sign-in is coming soon.</p>', unsafe_allow_html=True)
+    st.markdown('<div class="login-divider"><span>or</span></div>', unsafe_allow_html=True)
+
+
 def _render_login_side():
     st.markdown(_form_header_html("Welcome", "Sign in to your analytics dashboard"),
                 unsafe_allow_html=True)
     _show_messages()
+    _render_google_option()
 
     with st.form("login_form", border=False):
-        email = st.text_input("Email", placeholder="you@example.com", key="login_email")
-        password = st.text_input("Password", placeholder="Your password",
-                                 type="password", key="login_password")
+        email = st.text_input("Email", placeholder="you@example.com", key="login_email",
+                              max_chars=255, autocomplete="email")
+        password = st.text_input("Password", placeholder="Your password", type="password",
+                                 key="login_password", max_chars=128,
+                                 autocomplete="current-password")
         submitted = st.form_submit_button("Sign in", type="primary")
 
     if submitted:
         if email and password:
             success, message = login(email, password)
-            if success:
-                st.rerun()
-            else:
+            if not success:
                 st.session_state['login_error'] = message
-                st.rerun()
         else:
             st.session_state['login_error'] = "Enter your email and password."
-            st.rerun()
+        st.rerun()
 
     st.markdown('<div class="login-divider"><span>new here</span></div>', unsafe_allow_html=True)
 
     # Real, visible button (styled as a centered link) — switches to sign-up.
     if st.button("Create a free account — Sign up", key="switch_to_signup"):
-        st.session_state['login_mode'] = 'signup'
-        st.session_state['login_error'] = ''
-        st.session_state['login_success'] = ''
-        st.rerun()
+        _switch_mode('signup')
 
 
 def _render_signup_side():
@@ -670,38 +719,36 @@ def _render_signup_side():
     _show_messages()
 
     with st.form("signup_form", border=False):
-        display_name = st.text_input("Display name", placeholder="Your name", key="signup_name")
-        email = st.text_input("Email", placeholder="you@example.com", key="signup_email")
-        password = st.text_input("Password", placeholder="Min 10 characters",
-                                 type="password", key="signup_password")
+        display_name = st.text_input("Display name", placeholder="Your name", key="signup_name",
+                                     max_chars=100, autocomplete="name")
+        email = st.text_input("Email", placeholder="you@example.com", key="signup_email",
+                              max_chars=255, autocomplete="email")
+        password = st.text_input("Password", placeholder="Min 10 characters", type="password",
+                                 key="signup_password", max_chars=72,
+                                 autocomplete="new-password")
         confirm = st.text_input("Confirm password", placeholder="Re-enter password",
-                                type="password", key="signup_confirm")
+                                type="password", key="signup_confirm", max_chars=72,
+                                autocomplete="new-password")
         submitted = st.form_submit_button("Create account", type="primary")
 
     if submitted:
         if not all([email, password, confirm]):
             st.session_state['login_error'] = "Fill in all fields."
-            st.rerun()
         elif password != confirm:
             st.session_state['login_error'] = "Passwords do not match."
-            st.rerun()
         else:
             success, message = register_user(email, password, display_name)
             if success:
                 st.session_state['login_success'] = message
                 st.session_state['login_mode'] = 'login'
-                st.rerun()
             else:
                 st.session_state['login_error'] = message
-                st.rerun()
+        st.rerun()
 
     st.markdown('<div class="login-divider"><span>or</span></div>', unsafe_allow_html=True)
 
     if st.button("Already have an account? Sign in", key="switch_to_login"):
-        st.session_state['login_mode'] = 'login'
-        st.session_state['login_error'] = ''
-        st.session_state['login_success'] = ''
-        st.rerun()
+        _switch_mode('login')
 
 
 # ─────────────────────────────────────────────────────────────────────────────
