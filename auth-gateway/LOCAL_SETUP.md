@@ -89,10 +89,10 @@ app uses it; keep any unrelated secrets. The launcher does not read that block.
 
 ## Deployment handoff
 
-Nothing here updates EC2. The teammate must deploy the gateway, Streamlit and
+Local setup does not update production. Deploy the gateway, Streamlit and
 HTTPS reverse proxy together; a plain pull/restart of Streamlit is insufficient.
-Use `deploy/README.md` as an example to adapt, not an already-validated server
-configuration. Production requires independent persistent secrets, its own
+Production requires independent persistent secrets supplied through
+server-side environment variables, its own
 Google credentials in Neon, email delivery settings, account-linking review,
 data-access review and actual HTTPS login/revocation tests. Do not deploy this
-development launcher or enable its test-account exception on EC2.
+development launcher or enable its test-account exception in production.

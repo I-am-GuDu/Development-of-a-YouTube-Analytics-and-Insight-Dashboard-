@@ -182,14 +182,13 @@ is a separate offline layout preview that deliberately denies login.
 
 The `.streamlit/config.toml` defaults target localhost. Private `secrets.toml`
 is optional; its previous `[auth.google]` block is unused by the new flow.
-Deployment changes belong to the EC2 teammate. The gateway, proxy and Streamlit
-must be deployed together; see the example [EC2 release guide](deploy/README.md).
+The gateway, proxy and Streamlit must be deployed together.
 
 Production origin: `https://ytvideoanalysis.studio`. Google sign-in is disabled
 by default pending provider setup, account-linking review and staging tests.
 Google client credentials are configured in Neon; they do not belong in
-Streamlit secrets or browser code. Store application runtime secrets in AWS
-Secrets Manager and retrieve them using the EC2 instance role.
+Streamlit secrets or browser code. Provide application runtime secrets through
+server-side environment variables. Keep local `.env` files out of Git.
 
 5. Create the PostgreSQL database (example name: `youtube_analytics`).
 
@@ -206,10 +205,10 @@ Secrets Manager and retrieve them using the EC2 instance role.
 
 ## Deployment
 
-This auth integration targets Ubuntu EC2 behind Nginx. See
-[deploy/README.md](deploy/README.md) for service files, secret injection, provider
-settings, migration checks and release tests. The former standalone Streamlit
-Community Cloud instructions do not cover the gateway boundary.
+Deploy the auth gateway, Streamlit and HTTPS reverse proxy together. Supply
+secrets through server-side environment variables and verify provider settings,
+migrations, login and session revocation before release. Standalone Streamlit
+hosting does not cover the gateway boundary.
 
 ## Secret safety checks
 

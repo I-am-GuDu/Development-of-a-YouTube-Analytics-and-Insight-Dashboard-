@@ -1,0 +1,23 @@
+title = "INFOSYS secret scanning"
+
+[extend]
+useDefault = true
+
+# Both findings are adjacent JavaScript symbol names in a generated pydeck
+# source map, not credentials. The symbols occur in its bundled loaders.gl
+# glTF normalization and S2 geometry source modules. The artifact is already
+# untracked; it entered history in 3705465b24f22be6a6706bfd37e48edd63fdd335.
+# Require the exact file AND exact complete match, only for generic-api-key.
+# All default detection rules and all other matches remain enabled.
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Two verified loaders.gl symbol pairs in the historical pydeck source map"
+condition = "AND"
+regexTarget = "match"
+paths = ['''(?:^|/)venv/share/jupyter/nbextensions/pydeck/index\.js\.map$''']
+regexes = [
+    '''^GLTF_KEYS",\ "GLTFV1Normalizer"$''',
+    '''^getS2CellIdFromToken",\ "getS2QuadkeyFromCellId"$''',
+]
