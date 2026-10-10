@@ -10,7 +10,7 @@ export function readConfig(env: Record<string, string | undefined> = process.env
   const origin = new URL(env.APP_ORIGIN || "");
   const neon = new URL(env.NEON_AUTH_URL || "");
   const local = env.APP_ENV === "development" && origin.protocol === "http:" &&
-    origin.hostname === "localhost" && origin.port === "8509";
+    origin.hostname === "localhost" && origin.port === "3001";
   if ((!local && (origin.protocol !== "https:" || origin.port)) || origin.username || origin.password ||
       origin.pathname !== "/" || origin.search || origin.hash) {
     throw new Error("APP_ORIGIN must be an HTTPS origin without a path or credentials.");

@@ -49,6 +49,7 @@ def _classify_batch(texts: list) -> list:
     numbered = "\n".join(
         f"{i + 1}. {str(t)[:_MAX_COMMENT_CHARS]}" for i, t in enumerate(texts)
     )
+    reply: str | None = None
     try:
         reply = chat(
             [
@@ -66,8 +67,7 @@ def _classify_batch(texts: list) -> list:
         data = json.loads(raw)
     except Exception as e:
         logger.warning("Sentiment batch failed, using neutral fallback")
-        # Log the raw reply to help debug if needed
-        logger.debug("Raw reply that failed to parse: %s", reply if 'reply' in locals() else 'None')
+        logger.debug("Sentiment reply received before failure: %s", reply is not None)
         return fallback
 
     if not isinstance(data, list):

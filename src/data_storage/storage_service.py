@@ -98,6 +98,18 @@ class DataStorageService:
                 if isinstance(value, np.ndarray):
                     return value.tolist()
                 return value
+
+            def to_int(value) -> int:
+                value = convert_numpy_types(value)
+                if value is None:
+                    raise TypeError("Cannot convert a missing video value to int.")
+                return int(value)
+
+            def to_float(value) -> float:
+                value = convert_numpy_types(value)
+                if value is None:
+                    raise TypeError("Cannot convert a missing video value to float.")
+                return float(value)
             
             # Convert DataFrame to list of dictionaries
             video_records = video_df.to_dict('records')
@@ -132,13 +144,13 @@ class DataStorageService:
                     'title': record['title'],
                     'description': record['description'],
                     'publish_date': record['publish_date'],
-                    'view_count': int(convert_numpy_types(record['view_count'])),
-                    'like_count': int(convert_numpy_types(record['like_count'])),
-                    'comment_count': int(convert_numpy_types(record['comment_count'])),
-                    'favorite_count': int(convert_numpy_types(record.get('favorite_count', 0))),
-                    'engagement_rate': float(convert_numpy_types(record['engagement_rate'])),
-                    'like_to_view_ratio': float(convert_numpy_types(record.get('like_to_view_ratio', 0))),
-                    'comment_to_like_ratio': float(convert_numpy_types(record.get('comment_to_like_ratio', 0))),
+                    'view_count': to_int(record['view_count']),
+                    'like_count': to_int(record['like_count']),
+                    'comment_count': to_int(record['comment_count']),
+                    'favorite_count': to_int(record.get('favorite_count', 0)),
+                    'engagement_rate': to_float(record['engagement_rate']),
+                    'like_to_view_ratio': to_float(record.get('like_to_view_ratio', 0)),
+                    'comment_to_like_ratio': to_float(record.get('comment_to_like_ratio', 0)),
                     'crawl_timestamp': record.get('crawl_timestamp', datetime.now())
                 })
             

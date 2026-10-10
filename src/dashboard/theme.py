@@ -116,7 +116,7 @@ _DARK = {
 # Public API
 # ─────────────────────────────────────────────────────────────────────────────
 
-def get_tokens(mode: str = None):
+def get_tokens(mode: str | None = None):
     """Return the token dict for a mode ('light' | 'dark').
 
     If mode is None, resolves the active mode from session/system.

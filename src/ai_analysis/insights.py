@@ -28,7 +28,7 @@ _SYSTEM_PROMPT = (
 _DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 
-def _best_posting_slot(video_df: pd.DataFrame):
+def _best_posting_slot(video_df: pd.DataFrame) -> tuple[str, int] | None:
     """Return (day_name, hour) with the highest average engagement, or None."""
     if video_df is None or video_df.empty or "publish_date" not in video_df.columns:
         return None
@@ -42,7 +42,10 @@ def _best_posting_slot(video_df: pd.DataFrame):
     grouped = df.groupby(["dow", "hour"])["engagement_rate"].mean()
     if grouped.empty:
         return None
-    best_dow, best_hour = grouped.idxmax()
+    best_slot = grouped.idxmax()
+    if not isinstance(best_slot, tuple) or len(best_slot) != 2:
+        return None
+    best_dow, best_hour = best_slot
     return _DAY_NAMES[int(best_dow)], int(best_hour)
 
 
@@ -77,9 +80,9 @@ def _build_summary(channel_data: dict, metrics: dict, video_df: pd.DataFrame,
                 f"{v['engagement_rate']:.2f}% engagement"
             )
         if "category" in video_df.columns:
-            cat = (video_df.groupby("category")["engagement_rate"].mean()
-                   .sort_values(ascending=False))
-            if not cat.empty:
+            cat = video_df.groupby("category")["engagement_rate"].mean()
+            if isinstance(cat, pd.Series) and not cat.empty:
+                cat = cat.sort_values(ascending=False)
                 best_cat = cat.index[0]
                 lines.append(f"Best-performing inferred category: {best_cat} ({cat.iloc[0]:.2f}% avg engagement)")
 

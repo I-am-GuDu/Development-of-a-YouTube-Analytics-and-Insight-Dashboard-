@@ -317,7 +317,7 @@ def _validate_password_strength(password):
     return True, ""
 
 
-def _normalise_email(email):
+def _normalise_email(email: str | None) -> str | None:
     email = (email or "").strip().lower()
     if not email or len(email) > 255 or "@" not in email or any(c.isspace() for c in email):
         return None
@@ -330,9 +330,19 @@ def _normalise_email(email):
 
 def register_user(email: str, password: str, display_name: str = "") -> tuple[bool, str]:
     """Create a local account. Existing emails get the same reply (no enumeration)."""
-    email = _normalise_email(email)
-    if not email:
+    normalised_email = _normalise_email(email)
+    if normalised_email is None:
         return False, "Please enter a valid email address."
+    email = normalised_email
+
+    try:
+        _ensure_tables()
+        with _engine().connect() as conn:
+            if conn.execute(text("SELECT 1 FROM oauth_users WHERE email = :email"), {"email": email}).scalar():
+                return False, "This email is registered with Google sign-in. Please use Continue with Google."
+    except SQLAlchemyError:
+        return False, "Account creation is temporarily unavailable. Please try again."
+
     valid, problem = _validate_password_strength(password or "")
     if not valid:
         return False, problem
@@ -346,9 +356,10 @@ def register_user(email: str, password: str, display_name: str = "") -> tuple[bo
 
 
 def authenticate_user(email: str, password: str) -> tuple[bool, str, dict | None]:
-    email = _normalise_email(email)
-    if not email or not password:
+    normalised_email = _normalise_email(email)
+    if normalised_email is None or not password:
         return False, "Invalid email or password.", None
+    email = normalised_email
     allowed, message = _check_rate_limit(email)
     if not allowed:
         return False, message, None
@@ -524,6 +535,7 @@ def start_google_sign_in() -> bool:
         return False
     flow_id, nonce = secrets.token_urlsafe(24), secrets.token_urlsafe(32)
     callback = origin + "/?" + urlencode({"auth_flow": flow_id})
+    response: requests.Response | None = None
     try:
         response = requests.post(base + "/sign-in/social",
                                  json={"provider": "google", "callbackURL": callback, "newUserCallbackURL": callback, "errorCallbackURL": callback},
@@ -532,7 +544,7 @@ def start_google_sign_in() -> bool:
         target = response.json().get("url") if response.status_code == 200 else None
     except (requests.RequestException, ValueError, AttributeError):
         target = None
-    cookies = _neon_cookies(response) if target else {}
+    cookies = _neon_cookies(response) if target and response is not None else {}
     parts = urlsplit(target) if isinstance(target, str) else None
     neon = urlsplit(base)
     expected = parts and parts.scheme == "https" and not parts.username and not parts.port and (
@@ -615,6 +627,9 @@ def _complete_google_sign_in():
         return
 
     base, origin = _neon_auth_url(), flow["origin"]
+    if base is None:
+        st.session_state["login_error"] = failure
+        return
     cookie_header = "; ".join(f"{k}={v}" for k, v in flow["cookies"].items())
     try:
         response = requests.get(base + "/get-session",
@@ -650,6 +665,18 @@ def _complete_google_sign_in():
                           timeout=(3, 5), allow_redirects=False, proxies=_NO_PROXY)
         except requests.RequestException:
             pass
+
+    try:
+        _ensure_tables()
+        with _engine().connect() as conn:
+            has_oauth = conn.execute(text("SELECT 1 FROM oauth_users WHERE provider = 'google' AND provider_user_id = :subject"), {"subject": subject}).scalar()
+            if not has_oauth:
+                if conn.execute(text("SELECT 1 FROM users WHERE email = :email"), {"email": email}).scalar():
+                    st.session_state["login_error"] = "This email already has a password account. Please sign in with your email and password."
+                    return
+    except SQLAlchemyError:
+        st.session_state["login_error"] = "Sign-in is temporarily unavailable. Please try again."
+        return
 
     name = str(user.get("name") or "").strip()[:100] or email.split("@")[0]
     try:

@@ -3,6 +3,7 @@ Historical Trend Analysis Queries
 Provides analytical functions for time-series data and performance trends
 """
 import logging
+from numbers import Integral
 from sqlalchemy import text
 import pandas as pd
 from datetime import datetime, timedelta
@@ -154,7 +155,10 @@ class AnalyticsQueries:
 
         # Find best day and hour
         if not df.empty:
-            best_row = df.loc[df['avg_engagement'].idxmax()]
+            best_index = df['avg_engagement'].idxmax()
+            if not isinstance(best_index, Integral):
+                raise ValueError("Expected an integer posting-time row index.")
+            best_row = df.loc[int(best_index)]
             best_day_hour = {
                 'day_of_week': best_row['day_of_week'],
                 'hour_of_day': best_row['hour_of_day'],
@@ -257,6 +261,8 @@ class AnalyticsQueries:
             'comment_count': 'mean', 
             'engagement_rate': 'mean'
         }).round(2)
+        if not isinstance(category_analysis, pd.DataFrame):
+            raise TypeError("Expected a DataFrame for category performance.")
         
         # Flatten column names
         category_analysis.columns = [
@@ -452,13 +458,13 @@ class AnalyticsQueries:
             advantages = []
             disadvantages = []
             
-            if primary_metrics and not pd.isna(primary_metrics.get('avg_engagement_rate')):
+            if primary_metrics and not bool(pd.isna(primary_metrics.get('avg_engagement_rate'))):
                 if primary_metrics['avg_engagement_rate'] > benchmarks['avg_engagement_rate']:
                     advantages.append(f"Higher engagement rate ({primary_metrics['avg_engagement_rate']:.2f}% vs {benchmarks['avg_engagement_rate']:.2f}%)")
                 else:
                     disadvantages.append(f"Lower engagement rate ({primary_metrics['avg_engagement_rate']:.2f}% vs {benchmarks['avg_engagement_rate']:.2f}%)")
                 
-                if not pd.isna(primary_metrics.get('engagement_efficiency')) and not pd.isna(benchmarks['avg_efficiency']):
+                if not bool(pd.isna(primary_metrics.get('engagement_efficiency'))) and not bool(pd.isna(benchmarks['avg_efficiency'])):
                     if primary_metrics['engagement_efficiency'] > benchmarks['avg_efficiency']:
                         advantages.append(f"Better engagement efficiency ({primary_metrics['engagement_efficiency']:.2f} vs {benchmarks['avg_efficiency']:.2f})")
                     else:

@@ -3,6 +3,7 @@ Predictive Analytics Module
 Provides forecasting, recommendations, and optimization algorithms
 """
 from sqlalchemy import text
+from numbers import Integral
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -139,6 +140,8 @@ class PredictiveAnalytics:
             'engagement_rate': ['mean', 'std', 'count'],
             'view_count': 'mean'
         }).round(2)
+        if not isinstance(category_performance, pd.DataFrame):
+            raise TypeError("Expected a DataFrame for category performance.")
         
         # Flatten column names
         category_performance.columns = [
@@ -149,7 +152,10 @@ class PredictiveAnalytics:
         high_performers = category_performance[
             (category_performance['avg_engagement_rate'] > df['engagement_rate'].mean()) &
             (category_performance['video_count'] >= 3)  # At least 3 videos per category
-        ].sort_values('avg_engagement_rate', ascending=False)
+        ]
+        if not isinstance(high_performers, pd.DataFrame):
+            raise TypeError("Expected a DataFrame for high-performing categories.")
+        high_performers = high_performers.sort_values('avg_engagement_rate', ascending=False)
         
         recommendations = []
         
@@ -170,13 +176,23 @@ class PredictiveAnalytics:
         }).round(2).reset_index()
         
         if not time_performance.empty:
-            best_time = time_performance.loc[time_performance['engagement_rate'].idxmax()]
+            best_index = time_performance['engagement_rate'].idxmax()
+            if not isinstance(best_index, Integral):
+                raise ValueError("Expected an integer posting-time row index.")
+            best_time = time_performance.iloc[int(best_index)]
+            if not isinstance(best_time, pd.Series):
+                raise TypeError("Expected a single posting-time row.")
+            best_day = best_time['day_of_week']
+            best_hour = best_time['hour_of_day']
+            if (not isinstance(best_day, (int, float, np.integer, np.floating))
+                    or not isinstance(best_hour, (int, float, np.integer, np.floating))):
+                raise TypeError("Expected numeric posting-time day and hour values.")
             day_names = {0: 'Mon', 1: 'Tue', 2: 'Wed', 3: 'Thu', 4: 'Fri', 5: 'Sat', 6: 'Sun'}
             
             recommendations.append({
                 'type': 'posting_time',
-                'optimal_day': day_names.get(best_time['day_of_week'], 'Unknown'),
-                'optimal_hour': int(best_time['hour_of_day']),
+                'optimal_day': day_names.get(int(best_day), 'Unknown') if best_day in day_names else 'Unknown',
+                'optimal_hour': int(best_hour),
                 'engagement_rate': best_time['engagement_rate'],
                 'reason': f'Posts at this time achieve {best_time["engagement_rate"]:.2f}% engagement'
             })

@@ -38,6 +38,10 @@ class DatabaseManager:
             self.db_password = _get_secret('DB_PASSWORD')
             if not self.db_password:
                 raise ValueError("DB_PASSWORD is not set. Add it to your .env file or Streamlit Cloud secrets.")
+            if self.db_port is None:
+                self.db_port = '5432'
+            if not isinstance(self.db_port, (str, int)):
+                raise ValueError("DB_PORT must be a string or integer.")
 
             # Create connection string
             self.connection_string = URL.create(
@@ -48,7 +52,8 @@ class DatabaseManager:
         if os.getenv("APP_ENV") == "production":
             query = self.connection_string.query
             root_cert = query.get("sslrootcert", "")
-            if (query.get("sslmode") != "verify-full" or not os.path.isabs(root_cert)
+            if (query.get("sslmode") != "verify-full" or not isinstance(root_cert, str)
+                    or not os.path.isabs(root_cert)
                     or not os.path.isfile(root_cert)):
                 raise ValueError("Production database connections require verified TLS and a trusted CA file.")
         
