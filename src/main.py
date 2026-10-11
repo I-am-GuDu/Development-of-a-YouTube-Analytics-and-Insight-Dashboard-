@@ -947,7 +947,7 @@ def page_channel_analytics():
         st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
         st.plotly_chart(charts.views_area_chart(
-            video_df), use_container_width=True)
+            video_df), width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div style="height:20px;"></div>', unsafe_allow_html=True)
@@ -963,7 +963,7 @@ def page_channel_analytics():
             """, unsafe_allow_html=True)
             traffic_fig = charts.traffic_sources_donut(video_df)
             if traffic_fig is not None:
-                st.plotly_chart(traffic_fig, use_container_width=True)
+                st.plotly_chart(traffic_fig, width="stretch")
             render_traffic_source_bars(video_df)
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1016,24 +1016,24 @@ def page_channel_analytics():
 
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
         st.plotly_chart(charts.engagement_distribution_chart(
-            video_df), use_container_width=True)
+            video_df), width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
         st.plotly_chart(charts.views_vs_likes_scatter(
-            video_df), use_container_width=True)
+            video_df), width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ════════════════════════ AUDIENCE TAB ════════════════════════════════
     with tab_audience:
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
         st.plotly_chart(charts.posting_frequency_chart(
-            video_df), use_container_width=True)
+            video_df), width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
         st.plotly_chart(charts.optimal_posting_heatmap(
-            video_df), use_container_width=True)
+            video_df), width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Category breakdown
@@ -1041,12 +1041,12 @@ def page_channel_analytics():
         with col1:
             st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
             st.plotly_chart(charts.category_performance_bar(
-                video_df), use_container_width=True)
+                video_df), width="stretch")
             st.markdown('</div>', unsafe_allow_html=True)
         with col2:
             st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
             st.plotly_chart(charts.category_distribution_pie(
-                video_df), use_container_width=True)
+                video_df), width="stretch")
             st.markdown('</div>', unsafe_allow_html=True)
 
     # ═══════════════════════ GROWTH FORECAST TAB ══════════════════════════
@@ -1068,7 +1068,7 @@ def page_channel_analytics():
                 if fig:
                     st.markdown('<div class="yt-chart-card">',
                                 unsafe_allow_html=True)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                     st.markdown('</div>', unsafe_allow_html=True)
 
                     c1, c2 = st.columns(2)
@@ -1152,7 +1152,7 @@ def page_video_explorer():
 
     st.dataframe(
         display_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "Views": st.column_config.NumberColumn(format="%d"),
@@ -1179,7 +1179,7 @@ def page_video_explorer():
 
     st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
     st.plotly_chart(charts.views_vs_likes_scatter(
-        filtered_df, top_n=len(filtered_df)), use_container_width=True)
+        filtered_df, top_n=len(filtered_df)), width="stretch")
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -1217,23 +1217,23 @@ def page_trend_analysis():
     with tab1:
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
         st.plotly_chart(charts.engagement_over_time_line(
-            video_df), use_container_width=True)
+            video_df), width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
         st.plotly_chart(charts.views_over_time_line(
-            video_df), use_container_width=True)
+            video_df), width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with tab2:
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
         st.plotly_chart(charts.posting_frequency_chart(
-            video_df), use_container_width=True)
+            video_df), width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
         st.plotly_chart(charts.optimal_posting_heatmap(
-            video_df), use_container_width=True)
+            video_df), width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with tab3:
@@ -1248,7 +1248,7 @@ def page_trend_analysis():
                 if fig:
                     st.markdown('<div class="yt-chart-card">',
                                 unsafe_allow_html=True)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                     st.markdown('</div>', unsafe_allow_html=True)
                     c1, c2 = st.columns(2)
                     with c1:
@@ -1366,7 +1366,7 @@ def page_multi_channel():
                 st.dataframe(
                     comparison_df[['title', 'subscriber_count', 'view_count',
                                    'video_count', 'avg_engagement_rate', 'engagement_efficiency']],
-                    use_container_width=True, hide_index=True
+                    width="stretch", hide_index=True
                 )
 
                 # Charts
@@ -1379,7 +1379,7 @@ def page_multi_channel():
                     st.plotly_chart(
                         charts.multi_channel_comparison_bar(
                             comparison_df, 'avg_engagement_rate', 'Engagement Rate Comparison', 'Avg Engagement Rate (%)'),
-                        use_container_width=True
+                        width="stretch"
                     )
                     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1388,7 +1388,7 @@ def page_multi_channel():
                     st.plotly_chart(
                         charts.multi_channel_comparison_bar(
                             comparison_df, 'subscriber_count', 'Subscriber Count Comparison', 'Subscribers'),
-                        use_container_width=True
+                        width="stretch"
                     )
                     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1401,7 +1401,7 @@ def page_multi_channel():
                         st.markdown(
                             '<div class="yt-chart-title">Content Category Distribution by Channel</div>', unsafe_allow_html=True)
                         st.dataframe(category_comparison,
-                                     use_container_width=True)
+                                     width="stretch")
                     else:
                         st.info("No content strategy data available.")
 
@@ -1607,12 +1607,12 @@ def page_comment_sentiment():
     with col_l:
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
         st.plotly_chart(charts.sentiment_donut(comments_df),
-                        use_container_width=True)
+                        width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
     with col_r:
         st.markdown('<div class="yt-chart-card">', unsafe_allow_html=True)
         st.plotly_chart(charts.sentiment_by_video_bar(comments_df, video_df),
-                        use_container_width=True)
+                        width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ─── Top positive / negative comments ───
