@@ -254,11 +254,16 @@ def test_google_hidden_without_valid_neon_url(env, monkeypatch):
     assert not auth.google_available()
 
 
-def test_network_error_does_not_leak(env, monkeypatch, caplog):
+@pytest.mark.parametrize("error_type", [requests.ConnectionError, requests.Timeout])
+def test_network_error_does_not_leak(env, monkeypatch, caplog, error_type):
     monkeypatch.setattr(auth.requests, "post",
-                        Mock(side_effect=requests.ConnectionError("DO-NOT-LOG-THIS")))
+                        Mock(side_effect=error_type("DO-NOT-LOG-THIS")))
     assert not auth.start_google_sign_in()
+    assert env.state["login_error"] == "Google sign-in is temporarily unreachable. Please try again later."
+    assert not auth._oauth_flows
+    assert not env.state.get("_cookie_actions")
     assert "DO-NOT-LOG-THIS" not in caplog.text
+    assert "DO-NOT-LOG-THIS" not in env.state["login_error"]
 
 
 def test_storage_rechecks_authorization_after_service_creation(mock_db_manager, processed_channel):

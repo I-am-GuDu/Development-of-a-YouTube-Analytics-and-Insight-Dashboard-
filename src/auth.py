@@ -542,8 +542,12 @@ def start_google_sign_in() -> bool:
                                  headers=_neon_headers(origin), timeout=(3, 10),
                                  allow_redirects=False, proxies=_NO_PROXY)
         target = response.json().get("url") if response.status_code == 200 else None
-    except (requests.RequestException, ValueError, AttributeError):
+    except (ValueError, AttributeError):
         target = None
+    except requests.RequestException as error:
+        logger.warning("Google sign-in request failed (%s)", type(error).__name__)
+        st.session_state["login_error"] = "Google sign-in is temporarily unreachable. Please try again later."
+        return False
     cookies = _neon_cookies(response) if target and response is not None else {}
     parts = urlsplit(target) if isinstance(target, str) else None
     neon = urlsplit(base)
