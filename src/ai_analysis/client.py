@@ -12,9 +12,9 @@ Auth needs two things:
 
 To switch the model, change CF_MODEL below — that is the only place it lives.
 """
-import os
-import logging
 import json
+import logging
+import os
 
 import requests
 
@@ -68,7 +68,7 @@ def _resolve_account_id(token: str):
         if accounts:
             _account_id_cache = accounts[0]["id"]
             return _account_id_cache
-    except Exception as e:
+    except Exception:
         logger.warning("Could not auto-detect Cloudflare account id")
     return None
 

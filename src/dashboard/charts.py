@@ -5,9 +5,9 @@ YouTube Studio-style theme (dark/light)
 """
 import plotly.express as px
 import plotly.graph_objects as go
-import pandas as pd
-import numpy as np
-import streamlit as st
+
+# tests/test_charts.py patches `dashboard.charts.st`, so this name must exist.
+import streamlit as st  # noqa: F401
 
 from . import theme as _theme
 
@@ -48,32 +48,32 @@ def _apply_yt_studio_layout(fig, height=None):
     """Apply YouTube Studio theme layout to Plotly figures (theme-aware)."""
     colors = get_theme_colors()
 
-    layout_kwargs = dict(
-        template=colors['template'],
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor=colors['plot_bg'],
-        font=dict(family="Inter, sans-serif", color=colors['text_secondary'], size=12),
-        title=dict(font=dict(size=16, color=colors['text_primary'], family="Inter, sans-serif"), x=0.01, y=0.97),
-        margin=dict(l=20, r=20, t=50, b=20),
-        legend=dict(
-            bgcolor="rgba(0,0,0,0)",
-            bordercolor=colors['border'],
-            borderwidth=0,
-            font=dict(size=11, color=colors['text_secondary']),
-        ),
-        hoverlabel=dict(
-            bgcolor=colors['bg_card'],
-            bordercolor=colors['border'],
-            font=dict(color=colors['text_primary'], family="Inter, sans-serif"),
-        ),
-    )
+    layout_kwargs = {
+        'template': colors['template'],
+        'paper_bgcolor': "rgba(0,0,0,0)",
+        'plot_bgcolor': colors['plot_bg'],
+        'font': {'family': "Inter, sans-serif", 'color': colors['text_secondary'], 'size': 12},
+        'title': {'font': {'size': 16, 'color': colors['text_primary'], 'family': "Inter, sans-serif"}, 'x': 0.01, 'y': 0.97},
+        'margin': {'l': 20, 'r': 20, 't': 50, 'b': 20},
+        'legend': {
+            'bgcolor': "rgba(0,0,0,0)",
+            'bordercolor': colors['border'],
+            'borderwidth': 0,
+            'font': {'size': 11, 'color': colors['text_secondary']},
+        },
+        'hoverlabel': {
+            'bgcolor': colors['bg_card'],
+            'bordercolor': colors['border'],
+            'font': {'color': colors['text_primary'], 'family': "Inter, sans-serif"},
+        },
+    }
     if height:
         layout_kwargs['height'] = height
     fig.update_layout(**layout_kwargs)
     fig.update_xaxes(showgrid=True, gridcolor=colors['grid'], zeroline=False,
-                     tickfont=dict(color=colors['text_secondary'], size=10))
+                     tickfont={'color': colors['text_secondary'], 'size': 10})
     fig.update_yaxes(showgrid=True, gridcolor=colors['grid'], zeroline=False,
-                     tickfont=dict(color=colors['text_secondary'], size=10))
+                     tickfont={'color': colors['text_secondary'], 'size': 10})
     return fig
 
 
@@ -92,7 +92,7 @@ def views_area_chart(video_df):
         x=df['publish_date'], y=df['view_count'],
         mode='lines',
         name='Views',
-        line=dict(color=colors['chart_line'], width=2.5),
+        line={'color': colors['chart_line'], 'width': 2.5},
         fill='tozeroy',
         fillcolor=colors['chart_fill'],
         hovertemplate='<b>%{text}</b><br>Views: %{y:,}<extra></extra>',
@@ -104,12 +104,12 @@ def views_area_chart(video_df):
         x=df['publish_date'], y=[0] * len(df),
         mode='markers',
         name='Video uploads',
-        marker=dict(
-            symbol='triangle-up',
-            size=10,
-            color=colors['text_secondary'],
-            line=dict(width=1, color=colors['text_secondary']),
-        ),
+        marker={
+            'symbol': 'triangle-up',
+            'size': 10,
+            'color': colors['text_secondary'],
+            'line': {'width': 1, 'color': colors['text_secondary']},
+        },
         hovertemplate='<b>%{text}</b><br>Published<extra></extra>',
         text=df['title'],
         showlegend=False,
@@ -141,19 +141,19 @@ def traffic_sources_donut(video_df):
         labels=category_views['category'],
         values=category_views['views'],
         hole=0.6,
-        marker=dict(colors=palette[:len(category_views)],
-                    line=dict(color=colors['bg_card'], width=2)),
+        marker={'colors': palette[:len(category_views)],
+                    'line': {'color': colors['bg_card'], 'width': 2}},
         textinfo='none',
         hovertemplate='<b>%{label}</b><br>Views: %{value:,}<br>%{percent}<extra></extra>',
     ))
 
     fig.update_layout(
-        title=dict(text='Views by category', font=dict(size=16, color=colors['text_primary'])),
-        annotations=[dict(
-            text='Category<br>mix',
-            x=0.5, y=0.5, font=dict(size=13, color=colors['text_secondary'], family='Inter'),
-            showarrow=False,
-        )],
+        title={'text': 'Views by category', 'font': {'size': 16, 'color': colors['text_primary']}},
+        annotations=[{
+            'text': 'Category<br>mix',
+            'x': 0.5, 'y': 0.5, 'font': {'size': 13, 'color': colors['text_secondary'], 'family': 'Inter'},
+            'showarrow': False,
+        }],
         showlegend=False,
     )
 
@@ -174,16 +174,16 @@ def impressions_funnel(metrics, video_df):
         x=[total_views, avg_engagement * 1000, total_interactions],
         textinfo='value',
         texttemplate='%{value:,}',
-        marker=dict(
-            color=[colors['accent_purple'], colors['accent_blue'], colors['accent_teal']],
-            line=dict(width=0),
-        ),
-        connector=dict(line=dict(color=colors['border'], width=1)),
+        marker={
+            'color': [colors['accent_purple'], colors['accent_blue'], colors['accent_teal']],
+            'line': {'width': 0},
+        },
+        connector={'line': {'color': colors['border'], 'width': 1}},
     ))
 
     fig.update_layout(
-        title=dict(text='Impressions and how they led to watch time',
-                   font=dict(size=16, color=colors['text_primary'])),
+        title={'text': 'Impressions and how they led to watch time',
+                   'font': {'size': 16, 'color': colors['text_primary']}},
         showlegend=False,
         funnelmode='stack',
     )
@@ -268,7 +268,7 @@ def category_distribution_pie(video_df):
         color_discrete_sequence=palette
     )
     fig.update_traces(textposition='inside', textinfo='percent+label',
-                      marker=dict(line=dict(color=colors['bg_card'], width=2)))
+                      marker={'line': {'color': colors['bg_card'], 'width': 2}})
     return _apply_yt_studio_layout(fig)
 
 
@@ -282,13 +282,13 @@ def engagement_over_time_line(video_df):
     fig.add_trace(go.Scatter(
         x=df['publish_date'], y=df['engagement_rate'],
         mode='markers', name='Individual Videos',
-        marker=dict(size=7, opacity=0.65, color=colors['accent_teal']),
+        marker={'size': 7, 'opacity': 0.65, 'color': colors['accent_teal']},
         hovertext=df['title']
     ))
     fig.add_trace(go.Scatter(
         x=df['publish_date'], y=df['rolling_avg'],
         mode='lines', name='5-Video Rolling Avg',
-        line=dict(color=colors['accent_purple'], width=3)
+        line={'color': colors['accent_purple'], 'width': 3}
     ))
     fig.update_layout(
         title='Engagement Rate Over Time',
@@ -313,7 +313,7 @@ def views_over_time_line(video_df):
     fig.add_trace(go.Scatter(
         x=df['publish_date'], y=df['rolling_avg'],
         mode='lines', name='5-Video Rolling Avg',
-        line=dict(color=colors['accent_purple'], width=3)
+        line={'color': colors['accent_purple'], 'width': 3}
     ))
     fig.update_layout(
         title='View Count Over Time',
@@ -359,7 +359,7 @@ def optimal_posting_heatmap(video_df):
     fig = px.imshow(
         pivot,
         title='Optimal Posting Times (Avg Engagement Rate)',
-        labels=dict(x='Hour of Day', y='Day of Week', color='Engagement %'),
+        labels={'x': 'Hour of Day', 'y': 'Day of Week', 'color': 'Engagement %'},
         color_continuous_scale=color_scale,
         aspect='auto'
     )
@@ -389,8 +389,8 @@ def growth_forecast_chart(forecast_data):
     fig.add_trace(go.Scatter(
         x=list(dates), y=list(values),
         mode='lines+markers', name='Predicted Engagement',
-        line=dict(color=colors['accent_teal'], dash='dash', width=3),
-        marker=dict(size=5)
+        line={'color': colors['accent_teal'], 'dash': 'dash', 'width': 3},
+        marker={'size': 5}
     ))
     fig.update_layout(
         title=f'Engagement Forecast (Confidence: {forecast_data.get("confidence", "N/A")})',
@@ -428,7 +428,7 @@ def sentiment_donut(comments_df):
         color_discrete_map=_sentiment_color_map(colors),
     )
     fig.update_traces(textposition='inside', textinfo='percent+label',
-                      marker=dict(line=dict(color=colors['bg_card'], width=2)))
+                      marker={'line': {'color': colors['bg_card'], 'width': 2}})
     return _apply_yt_studio_layout(fig)
 
 

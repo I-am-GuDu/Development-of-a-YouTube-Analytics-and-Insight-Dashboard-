@@ -1,14 +1,15 @@
 """
 PostgreSQL Database Configuration and Connection Manager
 """
-import os
 import logging
+import os
+
 import streamlit as st
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL, make_url
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
-from dotenv import load_dotenv
+from sqlalchemy.orm import sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,9 @@ class DatabaseManager:
         self.database_url = _get_secret('DATABASE_URL')
         if self.database_url:
             self.connection_string = make_url(self.database_url)
+            # Pin the psycopg2 driver; SQLAlchemy 2.1 maps bare "postgresql" to psycopg 3.
+            if self.connection_string.drivername == "postgresql":
+                self.connection_string = self.connection_string.set(drivername="postgresql+psycopg2")
         else:
             self.db_host = _get_secret('DB_HOST', 'localhost')
             self.db_port = _get_secret('DB_PORT', '5432')
@@ -45,7 +49,7 @@ class DatabaseManager:
 
             # Create connection string
             self.connection_string = URL.create(
-                "postgresql", username=self.db_user, password=self.db_password,
+                "postgresql+psycopg2", username=self.db_user, password=self.db_password,
                 host=self.db_host, port=int(self.db_port), database=self.db_name,
             )
 
@@ -82,7 +86,7 @@ class DatabaseManager:
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             return True
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             logger.error("Database connection failed")
             return False
     
@@ -97,9 +101,9 @@ class DatabaseManager:
                 conn.execute(text(schema_sql))
                 conn.commit()
             logger.info("Database schema initialized successfully")
-        except Exception as e:
+        except Exception:
             logger.error("Failed to initialize schema")
-            raise e
+            raise
 
 
 @st.cache_resource(show_spinner=False)

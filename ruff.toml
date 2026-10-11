@@ -1,0 +1,32 @@
+# Ruff configuration for the YouTube Analytics Dashboard.
+# Ruff 0.16+ enables a large default rule set. Only the options below are
+# customised; everything else keeps Ruff's defaults (venv/ and node_modules/
+# stay excluded by default).
+
+# README says "Python 3.10+", so do not apply rewrites that need 3.11+
+# (for example UP017: datetime.timezone.utc -> datetime.UTC).
+target-version = "py310"
+
+[lint]
+ignore = [
+    # Broad `except Exception` is intentional: UI code must not crash and
+    # log/user messages deliberately avoid leaking error details.
+    "BLE001",
+    # Best-effort `try/except/pass` fallbacks (theme detection, per-video
+    # comment fetch, query-param writes).
+    "S110",
+    # `raise Exception("YouTube API quota exceeded")` works as designed;
+    # a custom exception class would be a design change.
+    "TRY002",
+    # Merging nested `if`s in auth.py gives no benefit and touches security code.
+    "SIM102",
+    # `if x < 0: return False` / `return True` is clearer than the suggested rewrite.
+    "SIM103",
+    # `%` templates (JS block in auth.py, HTML in login_page.py) are equivalent
+    # and rewriting them would only add churn.
+    "UP031",
+]
+
+[lint.per-file-ignores]
+# The 17 imports here are intentional package re-exports.
+"src/dashboard/__init__.py" = ["F401"]

@@ -3,11 +3,13 @@ Data Storage Service for YouTube Analytics
 Handles CRUD operations and data persistence
 """
 import logging
+from datetime import datetime
+
 import pandas as pd
 from sqlalchemy.exc import SQLAlchemyError
-from .database import DatabaseManager
-from datetime import datetime
+
 from .analytics_queries import AnalyticsQueries
+from .database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -77,17 +79,17 @@ class DataStorageService:
             self.session.commit()
             logger.info("Channel data saved for %s", channel_data['channel_id'])
             
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             self.session.rollback()
             logger.error("Error saving channel data")
-            raise e
+            raise
     
     def save_video_data(self, video_df: pd.DataFrame):
         """Save processed video data to database"""
         self._authorization()
         try:
-            from sqlalchemy import text
             import numpy as np
+            from sqlalchemy import text
             
             # Helper function to convert numpy types to native Python types
             def convert_numpy_types(value):
@@ -157,17 +159,17 @@ class DataStorageService:
             self.session.commit()
             logger.info("Saved %d videos to database", len(video_records))
             
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             self.session.rollback()
             logger.error("Error saving video data")
-            raise e
+            raise
     
     def save_analytics_summary(self, channel_id: str, metrics: dict):
         """Save pre-computed analytics summary"""
         self._authorization()
         try:
-            from sqlalchemy import text
             import numpy as np
+            from sqlalchemy import text
             
             # Helper function to convert numpy types to native Python types
             def convert_numpy_types(value):
@@ -218,10 +220,10 @@ class DataStorageService:
             self.session.commit()
             logger.info("Analytics summary saved for channel %s", channel_id)
             
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             self.session.rollback()
             logger.error("Error saving analytics summary")
-            raise e
+            raise
         
     def save_comment_data(self, comments_df: pd.DataFrame):
         self._authorization()
@@ -232,8 +234,8 @@ class DataStorageService:
         Upserts on comment_id.
         """
         try:
-            from sqlalchemy import text
             import numpy as np
+            from sqlalchemy import text
 
             def convert_numpy_types(value):
                 if value is None or pd.isna(value):
@@ -282,10 +284,10 @@ class DataStorageService:
             self.session.commit()
             logger.info("Saved %d comments to database", len(comment_records))
 
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             self.session.rollback()
             logger.error("Error saving comment data")
-            raise e
+            raise
 
     def get_predictive_analytics(self):
         """Get predictive analytics object for forecasting and recommendations"""

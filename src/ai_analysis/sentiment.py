@@ -65,7 +65,7 @@ def _classify_batch(texts: list) -> list:
         if start_idx != -1 and end_idx != -1:
             raw = raw[start_idx:end_idx + 1]
         data = json.loads(raw)
-    except Exception as e:
+    except Exception:
         logger.warning("Sentiment batch failed, using neutral fallback")
         logger.debug("Sentiment reply received before failure: %s", reply is not None)
         return fallback

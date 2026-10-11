@@ -71,3 +71,4 @@ auth-gateway/.next/
 auth-gateway/next-env.d.ts
 auth-gateway/tsconfig.tsbuildinfo
 secret-scan-report.json
+.ruff_cache/

@@ -8,6 +8,7 @@ the numbers. All errors are swallowed and returned as ``{'ok': False, ...}`` so
 the UI never crashes.
 """
 import logging
+
 import pandas as pd
 
 from .client import chat, is_configured
@@ -122,6 +123,6 @@ def generate_insights(channel_data: dict, metrics: dict, video_df: pd.DataFrame,
         if not markdown:
             return {"ok": False, "error": "Empty response from the model."}
         return {"ok": True, "markdown": markdown}
-    except Exception as e:
+    except Exception:
         logger.error("Insight generation failed")
         return {"ok": False, "error": "The AI service is temporarily unavailable. Please try again."}

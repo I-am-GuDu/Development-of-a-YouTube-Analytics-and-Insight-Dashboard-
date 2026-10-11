@@ -4,10 +4,10 @@ Handles YouTube Data API v3 interactions
 """
 import os
 import time
-from typing import Dict, List, Optional
+
+from dotenv import load_dotenv
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -26,7 +26,7 @@ class YouTubeAPIHandler:
         self.youtube = build('youtube', 'v3', developerKey=self.api_key)
         self.quota_remaining = 10000  # Daily quota limit
         
-    def get_channel_details(self, channel_id: str) -> Dict:
+    def get_channel_details(self, channel_id: str) -> dict:
         """
         Retrieve channel details using channel ID
         """
@@ -48,66 +48,58 @@ class YouTubeAPIHandler:
             elif e.resp.status == 400:
                 raise ValueError(f"Invalid channel ID: {channel_id}")
             else:
-                raise e
+                raise
     
-    def get_channel_by_username(self, username: str) -> Dict:
+    def get_channel_by_username(self, username: str) -> dict:
         """
         Retrieve channel details using custom username (@handle)
         """
-        try:
-            # Remove @ symbol if present
-            clean_username = username.lstrip('@')
-            
-            request = self.youtube.search().list(
-                part='snippet',
-                type='channel',
-                q=clean_username,
-                maxResults=1
-            )
-            response = request.execute()
-            
-            if not response['items']:
-                raise ValueError(f"No channel found with username: {username}")
-            
-            # Get the actual channel ID from search result
-            channel_id = response['items'][0]['snippet']['channelId']
-            
-            # Now get full channel details using the ID
-            return self.get_channel_details(channel_id)
-            
-        except HttpError as e:
-            raise e
+        # Remove @ symbol if present
+        clean_username = username.lstrip('@')
+        
+        request = self.youtube.search().list(
+            part='snippet',
+            type='channel',
+            q=clean_username,
+            maxResults=1
+        )
+        response = request.execute()
+        
+        if not response['items']:
+            raise ValueError(f"No channel found with username: {username}")
+        
+        # Get the actual channel ID from search result
+        channel_id = response['items'][0]['snippet']['channelId']
+        
+        # Now get full channel details using the ID
+        return self.get_channel_details(channel_id)
     
-    def get_channel_videos(self, upload_playlist_id: str, max_results: int = 50) -> List[Dict]:
+    def get_channel_videos(self, upload_playlist_id: str, max_results: int = 50) -> list[dict]:
         """
         Retrieve video IDs from channel's upload playlist
         """
-        try:
-            request = self.youtube.playlistItems().list(
-                part='snippet',
-                playlistId=upload_playlist_id,
-                maxResults=max_results
-            )
-            response = request.execute()
+        request = self.youtube.playlistItems().list(
+            part='snippet',
+            playlistId=upload_playlist_id,
+            maxResults=max_results
+        )
+        response = request.execute()
+        
+        videos = []
+        for item in response.get('items', []):
+            video_id = item['snippet']['resourceId']['videoId']
+            publish_date = item['snippet']['publishedAt']
+            title = item['snippet']['title']
             
-            videos = []
-            for item in response.get('items', []):
-                video_id = item['snippet']['resourceId']['videoId']
-                publish_date = item['snippet']['publishedAt']
-                title = item['snippet']['title']
-                
-                videos.append({
-                    'video_id': video_id,
-                    'publish_date': publish_date,
-                    'title': title
-                })
-            
-            return videos
-            
-        except HttpError as e:
-            raise e
+            videos.append({
+                'video_id': video_id,
+                'publish_date': publish_date,
+                'title': title
+            })
+        
+        return videos
     
-    def get_video_details(self, video_ids: List[str]) -> List[Dict]:
+    def get_video_details(self, video_ids: list[str]) -> list[dict]:
         """
         Retrieve detailed information for multiple videos
         """
@@ -121,37 +113,33 @@ class YouTubeAPIHandler:
         all_video_details = []
         
         for chunk in video_chunks:
-            try:
-                request = self.youtube.videos().list(
-                    part='snippet,statistics',
-                    id=','.join(chunk)
-                )
-                response = request.execute()
+            request = self.youtube.videos().list(
+                part='snippet,statistics',
+                id=','.join(chunk)
+            )
+            response = request.execute()
+            
+            for item in response.get('items', []):
+                statistics = item.get('statistics', {})
                 
-                for item in response.get('items', []):
-                    statistics = item.get('statistics', {})
-                    
-                    video_detail = {
-                        'video_id': item['id'],
-                        'title': item['snippet']['title'],
-                        'description': item['snippet']['description'],
-                        'publish_date': item['snippet']['publishedAt'],
-                        'view_count': int(statistics.get('viewCount', 0)),
-                        'like_count': int(statistics.get('likeCount', 0)),
-                        'comment_count': int(statistics.get('commentCount', 0)),
-                        'favorite_count': int(statistics.get('favoriteCount', 0))
-                    }
-                    all_video_details.append(video_detail)
-                
-                # Rate limiting - don't exceed API quota
-                time.sleep(0.1)
-
-            except HttpError as e:
-                raise e
+                video_detail = {
+                    'video_id': item['id'],
+                    'title': item['snippet']['title'],
+                    'description': item['snippet']['description'],
+                    'publish_date': item['snippet']['publishedAt'],
+                    'view_count': int(statistics.get('viewCount', 0)),
+                    'like_count': int(statistics.get('likeCount', 0)),
+                    'comment_count': int(statistics.get('commentCount', 0)),
+                    'favorite_count': int(statistics.get('favoriteCount', 0))
+                }
+                all_video_details.append(video_detail)
+            
+            # Rate limiting - don't exceed API quota
+            time.sleep(0.1)
 
         return all_video_details
 
-    def get_video_comments(self, video_id: str, max_results: int = 50) -> List[Dict]:
+    def get_video_comments(self, video_id: str, max_results: int = 50) -> list[dict]:
         """
         Retrieve top-level comments for a single video via the commentThreads
         endpoint. Works with an API key (no OAuth needed for reads).

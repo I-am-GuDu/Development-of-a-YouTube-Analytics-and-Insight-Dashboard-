@@ -3,11 +3,11 @@ Historical Trend Analysis Queries
 Provides analytical functions for time-series data and performance trends
 """
 import logging
-from numbers import Integral
-from sqlalchemy import text
-import pandas as pd
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from numbers import Integral
+
+import pandas as pd
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ class AnalyticsQueries:
 
         return df
 
-    def get_optimal_posting_times(self, channel_id: str) -> Dict:
+    def get_optimal_posting_times(self, channel_id: str) -> dict:
         """
         Analyze best days and times for posting based on engagement
         """
@@ -173,7 +173,7 @@ class AnalyticsQueries:
 
         return {'best_day_hour': {}, 'full_analysis': []}
 
-    def get_content_growth_trends(self, channel_id: str) -> Dict:
+    def get_content_growth_trends(self, channel_id: str) -> dict:
         """
         Analyze overall content growth and performance trends
         """
@@ -330,7 +330,7 @@ class AnalyticsQueries:
         return monthly_performance
     
 
-    def compare_multiple_channels(self, channel_ids: List[str]) -> pd.DataFrame:
+    def compare_multiple_channels(self, channel_ids: list[str]) -> pd.DataFrame:
         """
         Compare performance metrics across multiple channels
         """
@@ -364,11 +364,11 @@ class AnalyticsQueries:
             with self.db_manager.engine.connect() as conn:
                 df = pd.read_sql(query, conn, params=params)
             return df
-        except Exception as e:
+        except Exception:
             logger.error("Error comparing channels")
             return pd.DataFrame()
 
-    def get_cross_channel_performance_rankings(self, channel_ids: List[str], metric: str = 'engagement_rate') -> pd.DataFrame:
+    def get_cross_channel_performance_rankings(self, channel_ids: list[str], metric: str = 'engagement_rate') -> pd.DataFrame:
         """
         Rank channels by specific performance metric
         """
@@ -408,11 +408,11 @@ class AnalyticsQueries:
             with self.db_manager.engine.connect() as conn:
                 df = pd.read_sql(query, conn, params=params)
             return df
-        except Exception as e:
+        except Exception:
             logger.error("Error ranking channels")
             return pd.DataFrame()
 
-    def get_competitive_benchmarking_report(self, primary_channel_id: str, competitor_channel_ids: List[str]) -> Dict:
+    def get_competitive_benchmarking_report(self, primary_channel_id: str, competitor_channel_ids: list[str]) -> dict:
         """
         Generate competitive analysis report comparing one channel against competitors
         """
@@ -479,7 +479,7 @@ class AnalyticsQueries:
                 'rankings': self.get_cross_channel_performance_rankings(all_channel_ids, 'engagement_rate').to_dict('records')
             }
             
-        except Exception as e:
+        except Exception:
             logger.error("Error generating benchmarking report")
             return {
                 'comparison_table': [],
@@ -490,7 +490,7 @@ class AnalyticsQueries:
                 'rankings': []
             }
 
-    def get_content_strategy_comparison(self, channel_ids: List[str]) -> pd.DataFrame:
+    def get_content_strategy_comparison(self, channel_ids: list[str]) -> pd.DataFrame:
         """
         Compare content strategies across channels (categories, posting patterns, etc.)
         """
@@ -529,7 +529,7 @@ class AnalyticsQueries:
             else:
                 return pd.DataFrame()
                 
-        except Exception as e:
+        except Exception:
             logger.error("Error comparing content strategies")
             return pd.DataFrame()
 

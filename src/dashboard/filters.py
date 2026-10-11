@@ -3,7 +3,6 @@ Dashboard Filters Module
 Search and filter UI components for YouTube Analytics
 """
 import streamlit as st
-import pandas as pd
 
 
 def video_search_filter(video_df):

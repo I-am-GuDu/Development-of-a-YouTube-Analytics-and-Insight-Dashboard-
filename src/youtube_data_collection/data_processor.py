@@ -3,10 +3,10 @@ Data Processing Module
 Transforms raw YouTube API data into analysis-ready format
 """
 import logging
-import pandas as pd
-from datetime import datetime
-from typing import Dict, List
 import re
+from datetime import datetime
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class DataProcessor:
         return cleaned
 
     @staticmethod
-    def validate_channel_data(raw_channel_data: Dict) -> bool:
+    def validate_channel_data(raw_channel_data: dict) -> bool:
         """Validate raw channel data integrity"""
         required_fields = [
             'id', 'snippet', 'statistics', 'contentDetails'
@@ -47,7 +47,7 @@ class DataProcessor:
         return True
 
     @staticmethod
-    def validate_video_data(video_data: Dict) -> bool:
+    def validate_video_data(video_data: dict) -> bool:
         """Validate individual video data"""
         required_fields = [
             'video_id', 'title', 'publish_date',
@@ -69,7 +69,7 @@ class DataProcessor:
         return True
 
     @staticmethod
-    def process_channel_data(raw_channel_data) -> Dict:
+    def process_channel_data(raw_channel_data) -> dict:
         """Process raw channel data into structured format"""
         if not DataProcessor.validate_channel_data(raw_channel_data):
             raise ValueError("Invalid channel data format")
@@ -91,7 +91,7 @@ class DataProcessor:
         return processed
 
     @staticmethod
-    def process_video_data(raw_video_data: List[Dict]) -> pd.DataFrame:
+    def process_video_data(raw_video_data: list[dict]) -> pd.DataFrame:
         """Convert raw video data to DataFrame with validation"""
         validated_videos = []
 
@@ -148,7 +148,7 @@ class DataProcessor:
         return sorted_df
 
     @staticmethod
-    def calculate_engagement_metrics(processed_videos_df: pd.DataFrame) -> Dict:
+    def calculate_engagement_metrics(processed_videos_df: pd.DataFrame) -> dict:
         """Calculate comprehensive engagement metrics"""
         if processed_videos_df.empty:
             return {}
@@ -180,7 +180,7 @@ class DataProcessor:
         return metrics
 
     @staticmethod
-    def validate_comment_data(comment: Dict) -> bool:
+    def validate_comment_data(comment: dict) -> bool:
         """Validate a single raw comment dict."""
         required_fields = ['comment_id', 'video_id', 'text']
         for field in required_fields:
@@ -189,7 +189,7 @@ class DataProcessor:
         return True
 
     @staticmethod
-    def process_comment_data(raw_comments: List[Dict]) -> pd.DataFrame:
+    def process_comment_data(raw_comments: list[dict]) -> pd.DataFrame:
         """Convert raw comments into a clean DataFrame ready for sentiment analysis.
 
         Columns: comment_id, video_id, author, text, like_count,

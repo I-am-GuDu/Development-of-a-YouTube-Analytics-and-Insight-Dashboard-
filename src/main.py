@@ -3,24 +3,24 @@ YouTube Data Analysis Tool
 Main Application Entry Point
 YouTube Studio-style Analytics Dashboard
 """
-import streamlit as st
-import os
 import base64
 import html
-import pandas as pd
+import os
+
+import streamlit as st
 from dotenv import load_dotenv
-from youtube_data_collection.api_handler import YouTubeAPIHandler
-from youtube_data_collection.data_processor import DataProcessor
-from datetime import datetime, timedelta
-from data_storage.storage_service import DataStorageService
-from data_storage.database import get_shared_manager
-from dashboard import charts, filters
-from dashboard import theme as theme_tokens
-from auth import is_logged_in, logout, render_auth_bridge, require_authenticated
-from login_page import render_login_page
+
 from ai_analysis import insights as ai_insights
 from ai_analysis import sentiment as ai_sentiment
 from ai_analysis.client import is_configured as ai_configured
+from auth import is_logged_in, logout, render_auth_bridge, require_authenticated
+from dashboard import charts, filters
+from dashboard import theme as theme_tokens
+from data_storage.database import get_shared_manager
+from data_storage.storage_service import DataStorageService
+from login_page import render_login_page
+from youtube_data_collection.api_handler import YouTubeAPIHandler
+from youtube_data_collection.data_processor import DataProcessor
 
 load_dotenv()
 
@@ -610,7 +610,7 @@ def save_to_database(processed_channel, video_df, engagement_metrics):
         storage_service.save_analytics_summary(
             processed_channel['channel_id'], engagement_metrics)
         return True, "Data saved to database successfully!"
-    except Exception as e:
+    except Exception:
         return False, "Could not save to database. Please try again later."
 
 
@@ -810,8 +810,8 @@ def page_channel_analytics():
             st.rerun()
 
         except ValueError as ve:
-            st.error(f"Error: {str(ve)}")
-        except Exception as e:
+            st.error(f"Error: {ve!s}")
+        except Exception:
             st.error("Unable to fetch channel data. Check the channel ID and try again.")
 
     # If data is loaded, show the analytics dashboard
@@ -1101,7 +1101,7 @@ def page_channel_analytics():
                 if not strategy.get('recommendations'):
                     st.info(
                         "Not enough data to generate content strategy recommendations.")
-        except Exception as e:
+        except Exception:
             st.warning("Predictive analytics are temporarily unavailable.")
 
 
@@ -1276,7 +1276,7 @@ def page_trend_analysis():
                 if not strategy.get('recommendations'):
                     st.info(
                         "Not enough data to generate content strategy recommendations.")
-        except Exception as e:
+        except Exception:
             st.warning("Predictive analytics are temporarily unavailable.")
 
 
@@ -1435,7 +1435,7 @@ def page_multi_channel():
                             for dis in report['disadvantages']:
                                 st.write(f"⚠️ {dis}")
 
-        except Exception as e:
+        except Exception:
             st.error("Unable to compare channels. Please try again.")
 
 
@@ -1687,7 +1687,7 @@ def main():
         """, unsafe_allow_html=True)
 
         # Floating button to show sidebar
-        col_btn, col_space = st.columns([1, 10])
+        col_btn, _col_space = st.columns([1, 10])
         with col_btn:
             if st.button("▶ Menu", key="show_sidebar"):
                 st.session_state['sidebar_visible'] = True

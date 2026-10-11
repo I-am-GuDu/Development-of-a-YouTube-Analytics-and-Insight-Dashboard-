@@ -2,17 +2,18 @@
 Predictive Analytics Module
 Provides forecasting, recommendations, and optimization algorithms
 """
-from sqlalchemy import text
-from numbers import Integral
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.pipeline import Pipeline
-from typing import Dict, List, Tuple
 import logging
 import warnings
+from datetime import datetime, timedelta
+from numbers import Integral
+
+import numpy as np
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures
+from sqlalchemy import text
+
 warnings.filterwarnings('ignore')
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ class PredictiveAnalytics:
     def __init__(self, db_manager):
         self.db_manager = db_manager
     
-    def forecast_channel_growth(self, channel_id: str, days_ahead: int = 30) -> Dict:
+    def forecast_channel_growth(self, channel_id: str, days_ahead: int = 30) -> dict:
         """
         Forecast channel growth based on historical video performance
         """
@@ -84,10 +85,10 @@ class PredictiveAnalytics:
             return {
                 'forecast': [],
                 'confidence': 'error',
-                'message': f'Model fitting failed: {str(e)}'
+                'message': f'Model fitting failed: {e!s}'
             }
     
-    def recommend_content_strategy(self, channel_id: str) -> Dict:
+    def recommend_content_strategy(self, channel_id: str) -> dict:
         """
         Recommend content strategy based on historical performance patterns
         """
@@ -203,7 +204,7 @@ class PredictiveAnalytics:
             'total_videos_analyzed': len(df),
         }
     
-    def optimize_posting_schedule(self, channel_id: str, num_videos: int = 5) -> List[Dict]:
+    def optimize_posting_schedule(self, channel_id: str, num_videos: int = 5) -> list[dict]:
         """
         Recommend optimal posting schedule based on historical patterns
         """
@@ -268,7 +269,7 @@ class PredictiveAnalytics:
         
         return recommendations
     
-    def predict_video_performance(self, channel_id: str, video_title: str = "") -> Dict:
+    def predict_video_performance(self, channel_id: str, video_title: str = "") -> dict:
         """
         Predict performance of a potential video based on channel history
         """
@@ -298,7 +299,6 @@ class PredictiveAnalytics:
         # Calculate baseline metrics
         baseline_engagement = df['engagement_rate'].mean()
         baseline_views = df['view_count'].mean()
-        baseline_likes = df['like_count'].mean()
         
         # Adjust based on content category (if title provided)
         if video_title:

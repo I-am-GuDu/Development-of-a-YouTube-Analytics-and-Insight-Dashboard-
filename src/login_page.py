@@ -15,14 +15,19 @@ Design constraints honoured from the codebase:
   * Sign-in / sign-up run in Streamlit itself (see auth.py): email + password
     against the app's users table, or "Continue with Google" via Neon Auth.
 """
+from html import escape
+
 import streamlit as st
 import streamlit.components.v1 as components
 
-from auth import (google_available, login, pending_google_redirect, register_user,
-                  start_google_sign_in)
-from html import escape
+from auth import (
+    google_available,
+    login,
+    pending_google_redirect,
+    register_user,
+    start_google_sign_in,
+)
 from dashboard import theme as theme_tokens
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Styles

@@ -9,7 +9,6 @@ main.py, charts.py and effects_3d.py.
 """
 import streamlit as st
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared viz ramp (works on both light and dark cards)
 # ─────────────────────────────────────────────────────────────────────────────
