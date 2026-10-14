@@ -518,14 +518,122 @@ def _inject_login_styles(mode='light'):
             .sr-captions span:nth-child(1) {{ opacity: 1; transform: none; }}
             .block-container {{ transform: none !important; }}
         }}
+
+        /* ═══════════════ FIXED-HEIGHT CARD (login page only) ═══════════════
+           Every rule is anchored on .sr-scene so nothing can leak to the
+           dashboard. Card = viewport - 2×8px in every state; the form panel
+           scrolls inside it; message slots are fixed (see _show_messages). */
+        html:has(.sr-scene), body:has(.sr-scene) {{ overflow: hidden !important; }}
+        .stApp:has(.sr-scene) [data-testid="stMain"] {{
+            overflow: hidden !important;
+            min-height: 0 !important;
+            justify-content: flex-start !important;
+        }}
+        /* 100vh fallback first; no var() here or the fallback is lost. */
+        .stApp:has(.sr-scene) [data-testid="stMainBlockContainer"] {{
+            box-sizing: border-box !important;
+            height: calc(100vh - 16px) !important;
+            height: calc(100dvh - 16px) !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            flex: 0 0 auto !important;
+            margin-top: 8px !important;
+            margin-bottom: 8px !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }}
+        .stApp:has(.sr-scene) [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] {{
+            flex: 1 1 0% !important; min-height: 0 !important; gap: 0 !important;
+        }}
+        .stApp:has(.sr-scene) [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:has(.sr-scene) {{
+            flex: 1 1 0% !important; min-height: 0 !important;
+            display: flex !important; flex-direction: column !important; align-items: stretch !important;
+        }}
+        .stApp:has(.sr-scene) [data-testid="stHorizontalBlock"]:has(.sr-scene) {{
+            flex: 1 1 0% !important; min-height: 0 !important; align-items: stretch !important;
+        }}
+        .stApp:has(.sr-scene) [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"] {{
+            min-height: 0 !important;
+        }}
+        .stApp:has(.sr-scene) [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"]:nth-of-type(1) {{
+            overflow: hidden !important;
+        }}
+        /* Hero fills its (fixed) column: resolve .sr-scene's height:100%. */
+        .stApp:has(.sr-scene) [data-testid="stColumn"]:has(.sr-scene) :is([data-testid="stVerticalBlock"], [data-testid="stElementContainer"], [data-testid="stMarkdown"], [data-testid="stMarkdown"] > div, [data-testid="stMarkdownContainer"]):has(.sr-scene) {{
+            height: 100% !important; min-height: 0 !important; margin-bottom: 0 !important;
+        }}
+        /* Form panel scrolls inside the card; auto margins centre it when it fits
+           (justify-content:center on a scroller would cut off the top).
+           Scrollbar is hidden as a silent safety net. */
+        .stApp:has(.sr-scene) [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"]:nth-of-type(2) {{
+            overflow-y: auto !important; overflow-x: hidden !important;
+            overscroll-behavior: contain;
+            justify-content: flex-start !important;
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+        }}
+        .stApp:has(.sr-scene) [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"]:nth-of-type(2)::-webkit-scrollbar {{
+            display: none !important;
+        }}
+        .stApp:has(.sr-scene) [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"]:nth-of-type(2) > [data-testid="stVerticalBlock"] {{
+            flex: 0 0 auto !important; margin-top: auto !important; margin-bottom: auto !important;
+        }}
+        /* Message & hint slots: take natural height when showing content.
+           When empty, the slot and its wrapper element are display:none so they
+           take zero space and zero flex gap. */
+        .stApp:has(.sr-scene) [data-testid="stLayoutWrapper"]:has(> .st-key-sr_msg_slot:empty),
+        .stApp:has(.sr-scene) .st-key-sr_msg_slot:empty,
+        .stApp:has(.sr-scene) [data-testid="stLayoutWrapper"]:has(> .st-key-sr_hint_slot:empty),
+        .stApp:has(.sr-scene) .st-key-sr_hint_slot:empty {{
+            display: none !important;
+        }}
+        /* When showing content, restore the gap below the slot matching the clean-state
+           gap below the subtitle (.sr-formhead margin-bottom: clamp(10px, 1.6vh, 18px)). */
+        .stApp:has(.sr-scene) [data-testid="stLayoutWrapper"]:has(> .st-key-sr_msg_slot:not(:empty)),
+        .stApp:has(.sr-scene) [data-testid="stLayoutWrapper"]:has(> .st-key-sr_hint_slot:not(:empty)) {{
+            margin-bottom: clamp(10px, 1.6vh, 18px) !important;
+        }}
+        .stApp:has(.sr-scene) .st-key-sr_msg_slot .login-note {{ margin: 0 !important; padding: 8px 12px; line-height: 1.35; }}
+        .stApp:has(.sr-scene) .st-key-sr_hint_slot .sr-hint {{ margin: 0 !important; line-height: 18px; }}
+        /* Cookie/JS bridge iframes: out of flow, still in the DOM and running
+           (never display:none). */
+        .stApp:has(.sr-scene) [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(iframe) {{
+            display: block !important; position: absolute !important; top: 0; left: 0;
+            width: 100% !important; height: 0 !important; overflow: hidden !important; pointer-events: none;
+        }}
+        /* Stacked (phone/tablet): the hero becomes a fixed-height, top-anchored
+           banner (its overflow:hidden crops the lower chart/KPIs); the form gets
+           the rest of the card and scrolls inside it. */
+        @media (max-width: 900px) {{
+            .stApp:has(.sr-scene) [data-testid="stHorizontalBlock"]:has(.sr-scene) {{
+                flex-direction: column !important; flex-wrap: nowrap !important; row-gap: 0 !important;
+            }}
+            .stApp:has(.sr-scene) [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"]:nth-of-type(1) {{
+                flex: 0 0 auto !important;
+                height: clamp(200px, 38vh, 340px) !important;
+                height: clamp(200px, 38dvh, 340px) !important;
+            }}
+            .stApp:has(.sr-scene) [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"]:nth-of-type(2) {{
+                flex: 1 1 0% !important; height: auto !important;
+            }}
+            .stApp:has(.sr-scene) .sr-scene {{ justify-content: flex-start; }}
+        }}
     </style>
     """, unsafe_allow_html=True)
 
 
-def _inject_entrance_styles():
+def _inject_entrance_styles(play=True):
     """Play-once entrance choreography — emitted only on the first render of the
     session. On later reruns it is not injected, so everything renders settled
-    (no replay on failed login / theme toggle / mode switch)."""
+    (no replay on failed login / theme toggle / mode switch).
+
+    The markdown slot itself is emitted on EVERY run (an empty <style> after the
+    first) so every element below keeps the same position between reruns.
+    Streamlit matches elements by position: a slot that comes and goes makes it
+    rebuild the page and show the previous copy below it until the run ends."""
+    if not play:
+        st.markdown("<style></style>", unsafe_allow_html=True)
+        return
     st.markdown("""
     <style>
     @media (prefers-reduced-motion: no-preference) {
@@ -650,14 +758,15 @@ def _form_header_html(title, subtitle):
 
 
 def _show_messages():
-    if st.session_state.get('login_error'):
-        st.markdown(f'<div class="login-note login-err">{escape(str(st.session_state["login_error"]))}</div>',
-                    unsafe_allow_html=True)
-        st.session_state['login_error'] = ''
-    if st.session_state.get('login_success'):
-        st.markdown(f'<div class="login-note login-ok">{escape(str(st.session_state["login_success"]))}</div>',
-                    unsafe_allow_html=True)
-        st.session_state['login_success'] = ''
+    with st.container(border=False, key="sr_msg_slot"):
+        if st.session_state.get('login_error'):
+            st.markdown(f'<div class="login-note login-err">{escape(str(st.session_state["login_error"]))}</div>',
+                        unsafe_allow_html=True)
+            st.session_state['login_error'] = ''
+        if st.session_state.get('login_success'):
+            st.markdown(f'<div class="login-note login-ok">{escape(str(st.session_state["login_success"]))}</div>',
+                        unsafe_allow_html=True)
+            st.session_state['login_success'] = ''
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -674,11 +783,12 @@ def _switch_mode(mode):
 def _render_google_option():
     """"Continue with Google" (Neon Auth) + "or" divider, above the email form."""
     redirect = pending_google_redirect()
-    if redirect:
-        st.markdown(
-            '<p class="sr-hint">Opening Google… If nothing happens, '
-            f'<a href="{escape(redirect, quote=True)}" target="_self">continue to Google</a>.</p>',
-            unsafe_allow_html=True)
+    with st.container(border=False, key="sr_hint_slot"):
+        if redirect:
+            st.markdown(
+                '<p class="sr-hint">Opening Google… If nothing happens, '
+                f'<a href="{escape(redirect, quote=True)}" target="_self">continue to Google</a>.</p>',
+                unsafe_allow_html=True)
     enabled = google_available()
     if st.button("Continue with Google", key="google_btn", disabled=not enabled or bool(redirect)):
         start_google_sign_in()
@@ -901,13 +1011,10 @@ _JS_BODY = r"""
 def _js_bridge(first_render):
     flag = 'window.parent.__srFirstRender = %s;' % ('true' if first_render else 'false')
     js = '<script>%s</script>' % flag + _JS_BODY
-    # Collapse the iframe's element-container slot so it takes no vertical space.
-    st.markdown("""
-    <style>
-      div[data-testid="stElementContainer"]:has(iframe[height="0"]) { display: none !important; }
-      iframe[height="0"] { height: 0 !important; display: block; }
-    </style>
-    """, unsafe_allow_html=True)
+    # The iframe slot is taken out of flow (position:absolute; height:0) by the
+    # FIXED-HEIGHT CARD rules, never display:none, so the script keeps running.
+    # The empty markdown keeps this element slot so positions stay the same.
+    st.markdown("<style></style>", unsafe_allow_html=True)
     components.html(js, height=0)
 
 
@@ -931,9 +1038,8 @@ def render_login_page():
 
     # Play the entrance once per session; reruns render everything settled.
     first_render = not st.session_state.get('_login_entered')
-    if first_render:
-        _inject_entrance_styles()
-        st.session_state['_login_entered'] = True
+    _inject_entrance_styles(play=first_render)   # same slot every run (see docstring)
+    st.session_state['_login_entered'] = True
 
     left, right = st.columns([11, 9], gap="large")
     with left:
