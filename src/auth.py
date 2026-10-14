@@ -555,9 +555,8 @@ def start_google_sign_in() -> bool:
         parts.hostname == "accounts.google.com"
         or (parts.hostname == neon.hostname and parts.path == neon.path + "/sign-in/social/init"))
     if not expected or not cookies:
-        logger.warning("Google sign-in could not start")
-        st.session_state["login_error"] = ("Google sign-in could not start. If this keeps happening, "
-                                           "add this site to Neon Auth's trusted domains.")
+        logger.warning("Google sign-in could not start (unexpected redirect target or missing cookies; check Neon Auth trusted domains)")
+        st.session_state["login_error"] = "Google sign-in is unavailable right now. Please try again in a moment."
         return False
     with _oauth_lock:
         _purge_flows()
