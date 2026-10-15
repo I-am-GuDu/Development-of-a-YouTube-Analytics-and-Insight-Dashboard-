@@ -282,7 +282,7 @@
   <li>Your session cookie holds a long random code. Our database stores only a fingerprint (SHA-256 hash) of it, not the code itself.</li>
   <li>Sessions end after 7 days or when you sign out. They are checked against the database at least once a minute, so signing out in one tab ends the others.</li>
   <li>Google sign-in uses a one-time code. It must finish in the same browser that started it, and only email addresses that Google has verified are accepted. The Neon Auth session is ended straight away, so only our own session is kept.</li>
-  <li>In production, our app connects to the database only over an encrypted connection that checks the database's certificate.</li>
+  <li>Our app connects to the database over an encrypted connection.</li>
 </ul>
 <p>No system is completely secure. If a data breach affects your personal data, we will tell you and the authorities where the law requires it.</p>
 </section>
