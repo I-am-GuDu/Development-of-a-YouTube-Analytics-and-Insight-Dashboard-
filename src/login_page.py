@@ -425,6 +425,22 @@ def _inject_login_styles(mode='light'):
         .sr-hint {{ font-size: 12px; color: {t['text_faint']}; margin: 6px 0 0; text-align: center; }}
         .sr-hint a {{ color: {t['brand']}; }}
 
+        /* Legal links under the form (public /privacy and /terms pages) */
+        .stApp .sr-legal {{
+            font-size: 12px; line-height: 1.5; text-align: center;
+            color: {t['text_secondary']}; margin: clamp(8px, 1.4vh, 14px) 0 0;
+        }}
+        .stApp .sr-legal a {{
+            color: {t['brand']}; text-decoration: underline; text-underline-offset: 2px;
+        }}
+        .stApp .sr-legal a:focus-visible {{
+            outline: 2px solid {t['brand']}; outline-offset: 2px; border-radius: 3px;
+        }}
+        .sr-visually-hidden {{
+            position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+        }}
+
         /* Mode-switch buttons ("Sign up" / "Back to sign in") — real Streamlit
            buttons styled as a centered inline link (matches ref .switch). */
         .st-key-switch_to_signup, .st-key-switch_to_login {{
@@ -757,6 +773,17 @@ def _form_header_html(title, subtitle):
     )
 
 
+def _legal_links_html():
+    """Links to the public /privacy and /terms pages (served by nginx, not Streamlit)."""
+    new_tab = '<span class="sr-visually-hidden"> (opens in a new tab)</span>'
+    return (
+        '<p class="sr-legal">By continuing, you agree to our '
+        f'<a href="/terms" target="_blank" rel="noopener">Terms of Service{new_tab}</a>'
+        ' and confirm you have read our '
+        f'<a href="/privacy" target="_blank" rel="noopener">Privacy Policy{new_tab}</a>.</p>'
+    )
+
+
 def _show_messages():
     with st.container(border=False, key="sr_msg_slot"):
         if st.session_state.get('login_error'):
@@ -827,6 +854,8 @@ def _render_login_side():
     if st.button("Create a free account — Sign up", key="switch_to_signup"):
         _switch_mode('signup')
 
+    st.markdown(_legal_links_html(), unsafe_allow_html=True)
+
 
 def _render_signup_side():
     st.markdown(_form_header_html("Create your account", "Free — no credit card needed"),
@@ -864,6 +893,8 @@ def _render_signup_side():
 
     if st.button("Already have an account? Sign in", key="switch_to_login"):
         _switch_mode('login')
+
+    st.markdown(_legal_links_html(), unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

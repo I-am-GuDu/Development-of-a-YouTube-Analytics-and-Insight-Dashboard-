@@ -417,6 +417,23 @@ def inject_yt_studio_styles(mode='light'):
 
         .yt-divider {{ border: none; border-top: 1px solid var(--divider); margin: 16px 0; }}
 
+        /* ── Legal links (sidebar; public /privacy and /terms pages) ── */
+        .yt-legal-links {{
+            font-family: var(--font-body); font-size: 0.75rem; line-height: 1.6;
+            color: var(--muted); text-align: center; margin: 12px 0 4px;
+        }}
+        .yt-legal-links a {{
+            color: var(--muted) !important; text-decoration: underline; text-underline-offset: 2px;
+        }}
+        .yt-legal-links a:hover {{ color: var(--brand) !important; }}
+        .yt-legal-links a:focus-visible {{
+            outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 3px;
+        }}
+        .yt-visually-hidden {{
+            position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+        }}
+
         /* ── Scrollbar ────────────────────────────────────── */
         ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
         ::-webkit-scrollbar-track {{ background: {t['scrollbar_track']}; }}
@@ -751,6 +768,16 @@ def render_sidebar():
         if st.button("🚪 Logout", key="logout_btn"):
             logout()
             st.rerun()
+
+        # Public legal pages, served by nginx (no sign-in needed).
+        new_tab = '<span class="yt-visually-hidden"> (opens in a new tab)</span>'
+        st.markdown(
+            '<nav class="yt-legal-links" aria-label="Legal">'
+            f'<a href="/privacy" target="_blank" rel="noopener">Privacy Policy{new_tab}</a>'
+            '<span aria-hidden="true"> · </span>'
+            f'<a href="/terms" target="_blank" rel="noopener">Terms of Service{new_tab}</a>'
+            '</nav>',
+            unsafe_allow_html=True)
 
     return page
 
