@@ -211,6 +211,13 @@ def _enable_v2(monkeypatch):
     login_page._ui_v2_enabled.cache_clear()
 
 
+def _disable_v2(monkeypatch):
+    import login_page
+
+    monkeypatch.delenv("LOGIN_UI_V2", raising=False)
+    login_page._ui_v2_enabled.cache_clear()
+
+
 def test_switch_off_output_equals_head():
     import login_page
 
@@ -243,8 +250,26 @@ def test_switch_on_adds_class_and_dark_css_only(monkeypatch):
     _enable_v2(monkeypatch)
     scene = login_page._scene_html()
     assert scene.startswith('<div class="sr-scene sr-v2">')
-    # Only the opening tag differs from the off state (hero markup untouched).
-    assert _sha(scene.replace('sr-scene sr-v2', 'sr-scene', 1)) == _HEAD_SCENE_SHA
+    # Constant per process: no session or theme input.
+    assert login_page._scene_html() == scene
+
+    _disable_v2(monkeypatch)
+    off_scene = login_page._scene_html()
+    _enable_v2(monkeypatch)
+
+    # Every existing id (and the JS hooks) survives unchanged; new markup adds no ids.
+    assert re.findall(r'\bid="([^"]+)"', scene) == re.findall(r'\bid="([^"]+)"', off_scene)
+    for hook in ('class="sr-chartwrap"', 'class="sr-chart"', 'class="sr-num"', 'class="sr-captions"'):
+        assert scene.count(hook) == off_scene.count(hook)
+    # The chart card replaces .sr-chartwrap in the same child position (4th), and
+    # its extra pieces are `hidden` so they take no space without the v2 CSS.
+    assert 'dashboard.</p><div class="sr2-card"><div class="sr2-cardhead" hidden>' in scene
+    assert '</div></div></div><div class="sr-kpis">' in scene
+    assert scene.count(' hidden') == 3
+    assert "Last 30 days" in scene and "Audience retention" in scene
+    # Same tip wording; only a <b> wrapper is added.
+    assert re.sub(r"<b[^>]*>|</b>", "", scene.split('<div class="sr-captions">')[1]) \
+        == off_scene.split('<div class="sr-captions">')[1]
 
     dark = _style_string("dark")
     assert _V2_SCOPE in dark
@@ -259,6 +284,11 @@ def test_v2_css_rules_are_all_scoped(monkeypatch):
     import login_page
 
     css = re.sub(r"/\*.*?\*/", "", login_page._V2_DARK_CSS, flags=re.S)
+    # Keyframe steps (from/to/50%) are not selectors; names must be sr2- prefixed.
+    keyframes = re.findall(r"@keyframes\s+([\w-]+)\s*\{(?:[^{}]*\{[^{}]*\})*\s*\}", css)
+    assert all(name.startswith("sr2-") for name in keyframes)
+    css = re.sub(r"@keyframes\s+[\w-]+\s*\{(?:[^{}]*\{[^{}]*\})*\s*\}", "", css)
+    assert "@keyframes" not in css
     selectors = [m.group(1) for m in re.finditer(r"([^{}]+)\{[^{}]*\}", css)]
     assert selectors
     for group in selectors:

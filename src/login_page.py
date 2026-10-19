@@ -18,6 +18,7 @@ Design constraints honoured from the codebase:
 import os
 from functools import lru_cache
 from html import escape
+from urllib.parse import quote
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -46,7 +47,8 @@ def _ui_v2_enabled():
 # v2 look, dark theme only (phases A + B). Plain string (real CSS braces); every
 # rule starts with @S, which becomes `.stApp:has(.sr-scene.sr-v2)`, so nothing
 # can reach the dashboard or the off state. No external URLs: icons are inline
-# SVG data URIs. No animation is added.
+# SVG data URIs. The only motion (phase C cube float) is under
+# prefers-reduced-motion: no-preference.
 _V2_DARK_CSS = """
 
         /* ═══════════════ LOGIN_UI_V2 · dark only · phases A + B ═══════════════ */
@@ -194,6 +196,280 @@ _V2_DARK_CSS = """
             outline: 2px solid var(--sr2-ring) !important; outline-offset: 3px !important;
         }
 """.replace('@S', '.stApp:has(.sr-scene.sr-v2)')
+
+
+# ── Phase C (hero) ──────────────────────────────────────────────────────────
+# Static markup, emitted only when the switch is on (see _scene_html). The new
+# pieces carry `hidden`, so with the switch on but no v2 CSS (light theme) they
+# take no space; the bare .sr2-card wrapper is then a plain block of the same
+# height as the chart it wraps. No ids: nothing here can collide with sr-* ids.
+_V2_CHART_CARD_OPEN = (
+    '<div class="sr2-card">'
+    '<div class="sr2-cardhead" hidden>'
+    '<span class="sr2-cardtitle">Audience retention</span>'
+    '<svg class="sr2-info" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">'
+    '<circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8"/>'
+    '<path d="M12 11v5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+    '<circle cx="12" cy="7.6" r="1.2" fill="currentColor"/>'
+    '</svg>'
+    '<span class="sr2-chip">Last 30 days</span>'
+    '</div>'
+    '<div class="sr2-y" hidden aria-hidden="true"><span>100%</span><span>50%</span><span>0%</span></div>'
+    '<div class="sr2-grid" hidden aria-hidden="true"><i></i><i></i><i></i></div>'
+)
+# Inline style keeps the light theme (no v2 CSS) looking like the off state:
+# normal weight, and the flex gap of the caption is cancelled down to a space.
+_V2_BEST_WINDOW = '<b style="font-weight:inherit;margin-left:calc(0.25em - 8px)">Friday, 6 PM.</b>'
+
+
+def _svg_url(svg):
+    """CSS url() for an inline SVG (data URI, fully percent-encoded)."""
+    return 'url("data:image/svg+xml,' + quote(svg, safe='') + '")'
+
+
+def _spark_svg(points):
+    return (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 16'>"
+        "<defs><linearGradient id='sr2-sf' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#8B5CF6' stop-opacity='.38'/>"
+        "<stop offset='1' stop-color='#8B5CF6' stop-opacity='0'/></linearGradient></defs>"
+        f"<path d='M{points} L39 16 L1 16 Z' fill='url(#sr2-sf)'/>"
+        f"<path d='M{points}' fill='none' stroke='#A78BFA' stroke-width='1.6'"
+        " stroke-linecap='round' stroke-linejoin='round'/></svg>"
+    )
+
+
+def _icon_svg(body, width='2'):
+    return (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#DDD6FE'"
+        f" stroke-width='{width}' stroke-linecap='round' stroke-linejoin='round'>{body}</svg>"
+    )
+
+
+_V2_SVG = {
+    '@WAVES': (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 300' preserveAspectRatio='none'>"
+        "<defs>"
+        "<linearGradient id='sr2-wa' x1='0' y1='0' x2='1' y2='0'>"
+        "<stop offset='0' stop-color='#5B21B6' stop-opacity='.06'/>"
+        "<stop offset='.6' stop-color='#7C3AED' stop-opacity='.30'/>"
+        "<stop offset='1' stop-color='#6366F1' stop-opacity='.22'/></linearGradient>"
+        "<linearGradient id='sr2-wb' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#4C1D95' stop-opacity='.34'/>"
+        "<stop offset='1' stop-color='#1E1036' stop-opacity='.08'/></linearGradient>"
+        "</defs>"
+        "<path d='M0 170 C150 120 260 210 420 180 C560 154 660 100 800 118 L800 300 L0 300 Z' fill='url(#sr2-wa)'/>"
+        "<path d='M0 230 C170 196 300 262 470 232 C610 208 700 176 800 186 L800 300 L0 300 Z' fill='url(#sr2-wb)'/>"
+        "<path d='M0 170 C150 120 260 210 420 180 C560 154 660 100 800 118' fill='none' stroke='#A78BFA'"
+        " stroke-opacity='.32' stroke-width='1.2' vector-effect='non-scaling-stroke'/>"
+        "<path d='M0 230 C170 196 300 262 470 232 C610 208 700 176 800 186' fill='none' stroke='#C4B5FD'"
+        " stroke-opacity='.16' stroke-width='1' vector-effect='non-scaling-stroke'/>"
+        "</svg>"
+    ),
+    '@CUBE': (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 230'>"
+        "<defs>"
+        "<filter id='sr2-cb' x='-60%' y='-60%' width='220%' height='220%'><feGaussianBlur stdDeviation='14'/></filter>"
+        "<filter id='sr2-cs' x='-60%' y='-60%' width='220%' height='220%'><feGaussianBlur stdDeviation='7'/></filter>"
+        "<filter id='sr2-cg' x='-60%' y='-60%' width='220%' height='220%'><feGaussianBlur stdDeviation='5'/></filter>"
+        "<linearGradient id='sr2-cf' x1='0' y1='0' x2='1' y2='1'>"
+        "<stop offset='0' stop-color='#C4B5FD' stop-opacity='.42'/>"
+        "<stop offset='.5' stop-color='#7C3AED' stop-opacity='.20'/>"
+        "<stop offset='1' stop-color='#4C1D95' stop-opacity='.40'/></linearGradient>"
+        "<linearGradient id='sr2-ct' x1='0' y1='1' x2='1' y2='0'>"
+        "<stop offset='0' stop-color='#EDE9FE' stop-opacity='.40'/>"
+        "<stop offset='1' stop-color='#A78BFA' stop-opacity='.18'/></linearGradient>"
+        "<linearGradient id='sr2-cr' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#7C3AED' stop-opacity='.55'/>"
+        "<stop offset='1' stop-color='#2E1065' stop-opacity='.65'/></linearGradient>"
+        "<linearGradient id='sr2-cp' x1='0' y1='0' x2='1' y2='1'>"
+        "<stop offset='0' stop-color='#F5F3FF'/><stop offset='.45' stop-color='#C4B5FD'/>"
+        "<stop offset='1' stop-color='#7C3AED'/></linearGradient>"
+        "<linearGradient id='sr2-ch' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#FFFFFF' stop-opacity='.50'/>"
+        "<stop offset='1' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient>"
+        "</defs>"
+        "<circle cx='118' cy='120' r='58' fill='#7C3AED' opacity='.30' filter='url(#sr2-cb)'/>"
+        "<ellipse cx='112' cy='202' rx='72' ry='7' fill='#8B5CF6' opacity='.55' filter='url(#sr2-cs)'/>"
+        "<path d='M180 64 L206 42 L206 164 L180 190 Z' fill='url(#sr2-cr)' stroke='#C4B5FD'"
+        " stroke-opacity='.35' stroke-width='1.2' stroke-linejoin='round'/>"
+        "<path d='M40 63 L66 41 L204 41 L178 63 Z' fill='url(#sr2-ct)' stroke='#EDE9FE'"
+        " stroke-opacity='.45' stroke-width='1.2' stroke-linejoin='round'/>"
+        "<rect x='30' y='62' width='150' height='136' rx='24' fill='url(#sr2-cf)' stroke='#DDD6FE'"
+        " stroke-opacity='.60' stroke-width='1.5'/>"
+        "<path d='M54 70 H156 Q170 70 172 84 Q118 96 38 116 V86 Q38 70 54 70 Z' fill='url(#sr2-ch)' opacity='.40'/>"
+        "<path d='M92 106 L92 156 L138 131 Z' fill='#A78BFA' opacity='.85' filter='url(#sr2-cg)'/>"
+        "<path d='M92 106 L92 156 L138 131 Z' fill='url(#sr2-cp)' stroke='url(#sr2-cp)'"
+        " stroke-width='8' stroke-linejoin='round'/>"
+        "</svg>"
+    ),
+    '@ICONEYE': _icon_svg("<path d='M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z'/><circle cx='12' cy='12' r='3'/>"),
+    '@ICONPEOPLE': _icon_svg("<path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/>"
+                             "<path d='M22 21v-2a4 4 0 0 0-3-3.87'/><path d='M16 3.13a4 4 0 0 1 0 7.75'/>"),
+    '@ICONBARS': _icon_svg("<path d='M6 20v-7M12 20V5M18 20V10'/>", width='2.4'),
+    '@KPILINE1': _spark_svg('1 12 L6 10 L10 11 L15 6 L19 8 L24 5 L28 7 L33 3 L39 4'),
+    '@KPILINE2': _spark_svg('1 11 L5 12 L9 9 L14 10 L18 6 L23 8 L27 5 L32 7 L39 3'),
+    '@KPILINE3': _spark_svg('1 13 L6 12 L10 13 L14 9 L19 10 L24 7 L28 8 L33 4 L39 2'),
+    '@CLOCK': (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+        "<circle cx='12' cy='12' r='11' fill='#EAB308'/>"
+        "<circle cx='12' cy='12' r='8.2' fill='none' stroke='#FDE68A' stroke-opacity='.55' stroke-width='1'/>"
+        "<path d='M12 6.8V12l3.4 2.1' fill='none' stroke='#1C1404' stroke-width='2.2'"
+        " stroke-linecap='round' stroke-linejoin='round'/></svg>"
+    ),
+}
+
+_V2_HERO_CSS = """
+
+        /* ═══════════════ LOGIN_UI_V2 · dark only · phase C (hero) ═══════════════ */
+        @S {
+            --sr2-cpt: clamp(3px, 0.5vh, 8px);     /* card padding top/bottom (.block-container) */
+            --sr2-cpl: clamp(10px, 1.4vw, 18px);   /* card padding left/right */
+        }
+
+        /* C1 · background: glow top right, waves at the bottom, dot texture. The
+           ::before sits behind every child (isolation + z-index:-1). */
+        @S .sr-scene.sr-v2 {
+            isolation: isolate;
+            --sr2-chart-h: clamp(88px, 13vh, 128px);   /* same as the base .sr-chart height */
+            background: linear-gradient(160deg, #1B1233 0%, #120C22 48%, #0B0816 100%);
+        }
+        @S .sr-scene.sr-v2::before {
+            content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+            background:
+                radial-gradient(48% 40% at 94% 4%, rgba(139,92,246,0.45), transparent 72%),
+                radial-gradient(36% 30% at 72% 30%, rgba(124,58,237,0.16), transparent 75%),
+                @WAVES bottom / 100% clamp(150px, 34%, 260px) no-repeat,
+                radial-gradient(circle, rgba(196,181,253,0.11) 1px, transparent 1.5px) 0 0 / 18px 18px;
+        }
+        /* Edge to edge: the hero grows over the card padding (left, top, bottom, 1px
+           short so the card border stays visible) and adds the same amount to its own
+           padding, so its content box does not move or change size. */
+        @media (min-width: 901px) {
+            @S [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"]:nth-of-type(1) {
+                overflow: visible !important;
+            }
+            @S .sr-scene.sr-v2 {
+                margin: calc(1px - var(--sr2-cpt)) 0 0 calc(1px - var(--sr2-cpl));
+                height: calc(100% + 2 * var(--sr2-cpt) - 2px);
+                padding-top: calc(clamp(10px, 1.3vh, 20px) + var(--sr2-cpt) - 1px);
+                padding-bottom: calc(clamp(10px, 1.3vh, 20px) + var(--sr2-cpt) - 1px);
+                padding-left: calc(clamp(30px, 3.4vw, 48px) + var(--sr2-cpl) - 1px);
+                border-radius: 25px 0 0 25px;
+            }
+        }
+
+        /* C2 · glass play-button cube: a flex item with zero net height (margin-top =
+           -height), moved by `order` between the subtitle and the chart card and
+           right-aligned. Hidden when the hero is too narrow for it. */
+        @S .sr-scene.sr-v2 > :nth-child(n+4) { order: 2; }
+        @S .sr-scene.sr-v2::after {
+            content: ""; order: 1; flex: none; align-self: flex-end;
+            width: 124px; height: 112px; margin: -112px 0 0;
+            background: @CUBE center / contain no-repeat;
+            pointer-events: none;
+        }
+        @media (max-width: 1239px) {
+            @S .sr-scene.sr-v2::after { display: none; }
+        }
+        @media (prefers-reduced-motion: no-preference) {
+            @S .sr-scene.sr-v2::after { animation: sr2-float 6s ease-in-out infinite; }
+        }
+        @keyframes sr2-float {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-6px); }
+        }
+
+        /* C3 · chart card around .sr-chartwrap. The wrap itself is not padded or
+           moved inside, so the playhead maths (relative to the svg) is unchanged. */
+        @S .sr2-card {
+            position: relative;
+            padding: 10px 14px 6px 44px;
+            border: 1px solid rgba(167,139,250,0.24); border-radius: 16px;
+            background: linear-gradient(180deg, rgba(34,24,58,0.78) 0%, rgba(20,14,36,0.78) 100%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.25);
+        }
+        @S .sr2-cardhead {
+            display: flex !important; align-items: center; gap: 7px;
+            height: 22px; margin: 0 0 6px -30px;
+            color: #A39CB5;
+        }
+        @S .sr2-cardtitle { font-size: 13px; font-weight: 600; color: #EDE9FE; }
+        @S .sr2-info { flex: none; }
+        @S .sr2-chip {
+            margin-left: auto; padding: 2px 10px; border-radius: 999px; white-space: nowrap;
+            font-size: 11px; font-weight: 500; color: #C4B5FD;
+            background: rgba(124,58,237,0.14); border: 1px solid rgba(167,139,250,0.30);
+        }
+        /* Labels and grid cover the svg box: top = card padding 10 + head 22 + 6. */
+        @S .sr2-y, @S .sr2-grid {
+            display: block !important; position: absolute; top: 38px;
+            height: var(--sr2-chart-h); pointer-events: none;
+        }
+        @S .sr2-y {
+            left: 8px; width: 30px;
+            font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: #A39CB5;
+        }
+        @S .sr2-y span { position: absolute; right: 0; transform: translateY(-50%); line-height: 1; }
+        /* JS: pct = (210 - y) / 190 -> 100% at y=20, 50% at y=115, 0% at y=210 (of 210) */
+        @S .sr2-y span:nth-child(1), @S .sr2-grid i:nth-child(1) { top: 9.524%; }
+        @S .sr2-y span:nth-child(2), @S .sr2-grid i:nth-child(2) { top: 54.762%; }
+        @S .sr2-y span:nth-child(3) { top: 100%; }
+        @S .sr2-grid {
+            left: 44px; right: 14px;
+            background: repeating-linear-gradient(to right, rgba(167,139,250,0.07) 0 1px, transparent 1px calc(100% / 6));
+        }
+        @S .sr2-grid i { position: absolute; left: 0; right: 0; height: 1px; background: rgba(167,139,250,0.16); }
+        @S .sr2-grid i:nth-child(3) { top: calc(100% - 1px); }
+        @S .sr-scene.sr-v2 .sr-chart { height: var(--sr2-chart-h); }
+        @S .sr-scene.sr-v2 .sr-chart > g { display: none; }   /* old grid; the card grid replaces it */
+
+        /* C4 · no red progress bar: hidden, still in the DOM for the JS */
+        @S .sr-scene.sr-v2 .sr-track { display: none; }
+
+        /* C5 · KPI cards: icon in a circle (::before) and a sparkline (::after). The
+           grid keeps the two text rows, so the card height does not change. Plain
+           cards below 1350px, where the three would not fit side by side. */
+        @media (min-width: 1350px) {
+            @S .sr-scene.sr-v2 .sr-kpi {
+                display: grid; grid-template-columns: 28px minmax(0, 1fr) 34px;
+                column-gap: 8px; align-items: center;
+                padding-left: 12px; padding-right: 12px;
+            }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(-n+2) { grid-template-areas: "icon val spark" "icon lab lab"; }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(3) { grid-template-areas: "icon val val" "icon lab spark"; }
+            @S .sr-scene.sr-v2 .sr-kpi-val { grid-area: val; white-space: nowrap; }
+            @S .sr-scene.sr-v2 .sr-kpi-label { grid-area: lab; white-space: nowrap; }
+            @S .sr-scene.sr-v2 .sr-kpi::before {
+                content: ""; grid-area: icon; width: 28px; height: 28px; border-radius: 50%;
+                box-sizing: border-box; border: 1px solid rgba(167,139,250,0.35);
+                background: rgba(124,58,237,0.22) center / 15px 15px no-repeat;
+            }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(1)::before { background-image: @ICONEYE; }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(2)::before { background-image: @ICONPEOPLE; }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(3)::before { background-image: @ICONBARS; }
+            @S .sr-scene.sr-v2 .sr-kpi::after {
+                content: ""; grid-area: spark; justify-self: end; width: 34px; height: 14px;
+                background: center / contain no-repeat;
+            }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(1)::after { background-image: @KPILINE1; }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(2)::after { background-image: @KPILINE2; }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(3)::after { background-image: @KPILINE3; }
+        }
+
+        /* C6 · tip line: yellow clock instead of the bullet; bold best window */
+        @S .sr-scene.sr-v2 .sr-captions span::before {
+            content: ""; flex: none; width: 16px; height: 16px;
+            background: @CLOCK center / contain no-repeat;
+        }
+        @S .sr-scene.sr-v2 .sr-captions b { font-weight: 700 !important; color: #F5F2FA; }
+
+        /* C7 · no heading anchor-link icon on hover */
+        @S .sr-scene.sr-v2 [data-testid="stHeaderActionElements"] { display: none !important; }
+"""
+for _token, _svg in _V2_SVG.items():
+    _V2_HERO_CSS = _V2_HERO_CSS.replace(_token, _svg_url(_svg))
+_V2_DARK_CSS += _V2_HERO_CSS.replace('@S', '.stApp:has(.sr-scene.sr-v2)')
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -860,8 +1136,14 @@ def _inject_entrance_styles(play=True):
 
 def _scene_html():
     """The always-dark left showcase — one single markdown block."""
-    # Class is constant for the process (not theme-dependent) so the hero never remounts.
-    scene_open = '<div class="sr-scene sr-v2">' if _ui_v2_enabled() else '<div class="sr-scene">'
+    # Everything below is constant for the process (not theme- or session-dependent)
+    # so the hero never remounts. With the switch off every v2 piece is '' and the
+    # string is byte-identical to the pre-v2 page.
+    v2 = _ui_v2_enabled()
+    scene_open = '<div class="sr-scene sr-v2">' if v2 else '<div class="sr-scene">'
+    card_open = _V2_CHART_CARD_OPEN if v2 else ''
+    card_close = '</div>' if v2 else ''
+    best_window = _V2_BEST_WINDOW if v2 else 'Friday, 6 PM.'
     return (
         scene_open +
         '<div class="sr-top">'
@@ -870,7 +1152,8 @@ def _scene_html():
         '</div>'
         '<h1 class="sr-h1">Know what your <span class="sr-grad">audience</span> actually watches.</h1>'
         '<p class="sr-sub">Retention, engagement and revenue for every video'
-        ' — decoded into decisions, in one dashboard.</p>'
+        ' — decoded into decisions, in one dashboard.</p>' +
+        card_open +
         '<div class="sr-chartwrap">'
         '<svg class="sr-chart" viewBox="0 0 560 210" preserveAspectRatio="none" aria-hidden="true">'
         '<defs>'
@@ -908,7 +1191,8 @@ def _scene_html():
         '</div>'
         '<div class="sr-times"><span class="sr-cur" id="sr-tnow">0:00</span><span>3:00</span></div>'
         '</div>'
-        '</div>'
+        '</div>' +
+        card_close +
         '<div class="sr-kpis">'
         '<div class="sr-kpi">'
         '<div class="sr-kpi-val"><span class="sr-num" data-target="2400000" data-kind="views" data-delay="0">0.0M</span></div>'
@@ -926,7 +1210,7 @@ def _scene_html():
         '<div class="sr-captions">'
         '<span>Retention peaks at the 0:42 hook — repeat it earlier.</span>'
         '<span>Shorts bring 3.1× more new subscribers than long-form.</span>'
-        '<span>Best upload window for this channel: Friday, 6 PM.</span>'
+        '<span>Best upload window for this channel: ' + best_window + '</span>'
         '</div>'
         '</div>'
     )
