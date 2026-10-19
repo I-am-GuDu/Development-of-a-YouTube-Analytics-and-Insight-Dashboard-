@@ -44,29 +44,25 @@ def _ui_v2_enabled():
     return os.getenv('LOGIN_UI_V2', '').strip().lower() in ('1', 'true', 'yes', 'on')
 
 
-# v2 look, dark theme only (phases A + B). Plain string (real CSS braces); every
-# rule starts with @S, which becomes `.stApp:has(.sr-scene.sr-v2)`, so nothing
-# can reach the dashboard or the off state. No external URLs: icons are inline
-# SVG data URIs. The only motion (phase C cube float) is under
-# prefers-reduced-motion: no-preference.
-_V2_DARK_CSS = """
+# v2 look (phases A-D), both themes. Plain string (real CSS braces); every rule
+# starts with @S, which becomes `.stApp:has(.sr-scene.sr-v2)`, so nothing can
+# reach the dashboard or the off state. One set of rules: every colour, gradient
+# and themed SVG is a `var(--sr2-*)` whose value comes from _V2_THEME (emitted
+# per mode by _v2_css). No external URLs: icons are inline SVG data URIs. The
+# only motion (cube float) is under prefers-reduced-motion: no-preference.
+_V2_RULES_AB = """
 
-        /* ═══════════════ LOGIN_UI_V2 · dark only · phases A + B ═══════════════ */
+        /* ═══════════════ LOGIN_UI_V2 · phases A + B ═══════════════ */
 
-        /* A · page: purple glow + dot texture behind the card; shared v2 sizes */
+        /* A · page: glow + dot texture behind the card; shared v2 sizes */
         @S {
             --sr2-h: clamp(38px, 6.2vh, 56px);
             --sr2-gap: clamp(6px, 1.85vh, 16px);
             --sr2-tp: clamp(0px, calc(3vh - 12px), 16px);
-            --sr2-ring: #DDD6FE;
-            background:
-                radial-gradient(54% 48% at 14% 14%, rgba(124,58,237,0.34), transparent 72%),
-                radial-gradient(50% 46% at 90% 88%, rgba(91,108,255,0.24), transparent 72%),
-                radial-gradient(70% 60% at 50% 50%, rgba(76,29,149,0.20), transparent 78%),
-                #0E0A16 !important;
+            background: var(--sr2-page-bg) !important;
         }
         @S::before {
-            background-image: radial-gradient(circle, rgba(196,181,253,0.30) 1px, transparent 1.4px);
+            background-image: radial-gradient(circle, var(--sr2-page-dots) 1px, transparent 1.4px);
             background-size: 22px 22px;
             -webkit-mask: radial-gradient(95% 95% at 50% 50%, #000 35%, rgba(0,0,0,0.45) 100%);
                     mask: radial-gradient(95% 95% at 50% 50%, #000 35%, rgba(0,0,0,0.45) 100%);
@@ -75,16 +71,9 @@ _V2_DARK_CSS = """
            glow would be clipped by the 8px viewport margin) */
         @S .block-container::before {
             border: 1px solid transparent;
-            background:
-                linear-gradient(180deg, #221A38 0%, #1C1531 100%) padding-box,
-                linear-gradient(135deg, rgba(196,181,253,0.85) 0%, rgba(124,58,237,0.55) 38%,
-                                        rgba(91,108,255,0.45) 68%, rgba(167,139,250,0.80) 100%) border-box;
+            background: var(--sr2-card-bg);
             background-origin: border-box;
-            box-shadow:
-                inset 0 0 46px rgba(124,58,237,0.26),
-                inset 0 0 0 1px rgba(196,181,253,0.10),
-                0 0 12px rgba(124,58,237,0.38),
-                0 40px 110px rgba(0,0,0,0.6);
+            box-shadow: var(--sr2-card-shadow);
         }
 
         /* B · signup uses a slightly smaller control height */
@@ -99,8 +88,8 @@ _V2_DARK_CSS = """
         @S [data-testid="stTextInputRootElement"] {
             height: var(--sr2-h) !important; min-height: var(--sr2-h) !important;
             box-sizing: border-box !important;
-            background: rgba(11,8,20,0.55) !important;
-            border: 1px solid rgba(167,139,250,0.34) !important;
+            background: var(--sr2-input-bg) !important;
+            border: 1px solid var(--sr2-input-border) !important;
             border-radius: 14px !important;
             overflow: hidden;
         }
@@ -119,9 +108,9 @@ _V2_DARK_CSS = """
             background: transparent !important; border: none !important;
             border-radius: 0 !important; box-shadow: none !important; outline: none !important;
         }
-        @S [data-baseweb="base-input"] input::placeholder { color: #9D95B2 !important; opacity: 1; }
-        @S [data-testid="stWidgetLabel"] p, @S [data-testid="stWidgetLabel"] label { color: #B4ADC6 !important; }
-        @S [data-testid="stTextInputRootElement"] button { background: transparent !important; color: #B7AFCB !important; border: none !important; }
+        @S [data-baseweb="base-input"] input::placeholder { color: var(--sr2-placeholder) !important; opacity: 1; }
+        @S [data-testid="stWidgetLabel"] p, @S [data-testid="stWidgetLabel"] label { color: var(--sr2-label) !important; }
+        @S [data-testid="stTextInputRootElement"] button { background: transparent !important; color: var(--sr2-icon) !important; border: none !important; }
         @S [data-testid="stTextInputRootElement"] button:focus-visible { outline: 2px solid var(--sr2-ring) !important; outline-offset: -3px !important; }
 
         /* B · envelope (email) and lock (password, survives the reveal toggle:
@@ -130,7 +119,7 @@ _V2_DARK_CSS = """
         @S [data-baseweb="base-input"]:has(input[autocomplete$="password"])::before {
             content: ""; position: absolute; left: 16px; top: 50%;
             width: 18px; height: 18px; transform: translateY(-50%);
-            background: #B7AFCB; pointer-events: none; z-index: 2;
+            background: var(--sr2-icon); pointer-events: none; z-index: 2;
         }
         @S [data-baseweb="base-input"]:has(input[autocomplete="email"])::before {
             -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Cpath d='M3 7l9 6 9-6'/%3E%3C/svg%3E") center / contain no-repeat;
@@ -152,8 +141,8 @@ _V2_DARK_CSS = """
         }
         /* Google: taller, larger G */
         @S .st-key-google_btn button {
-            background: rgba(255,255,255,0.045) !important;
-            border: 1px solid rgba(167,139,250,0.34) !important;
+            background: var(--sr2-google-bg) !important;
+            border: 1px solid var(--sr2-google-border) !important;
             gap: 12px !important;
         }
         @S .st-key-google_btn button::before { width: 22px; height: 22px; }
@@ -177,15 +166,15 @@ _V2_DARK_CSS = """
         /* Sign up / Sign in link: violet, centred, with an arrow */
         @S .st-key-switch_to_signup, @S .st-key-switch_to_login { width: 100% !important; }
         @S .st-key-switch_to_signup button, @S .st-key-switch_to_login button {
-            color: #B9A6FC !important; font-weight: 600 !important;
+            color: var(--sr2-link) !important; font-weight: 600 !important;
         }
-        @S .st-key-switch_to_signup button:hover, @S .st-key-switch_to_login button:hover { color: #DDD6FE !important; }
+        @S .st-key-switch_to_signup button:hover, @S .st-key-switch_to_login button:hover { color: var(--sr2-link-hover) !important; }
 
         /* Divider text ("OR", "NEW HERE"): letter-spaced and readable */
-        @S .login-divider span { letter-spacing: 0.22em !important; color: #A39CB5 !important; }
-        @S .sr-legal { color: #B4ADC6 !important; }
-        @S .sr-legal a { color: #C4B5FD !important; }
-        @S .sr-hint { color: #A39CB5 !important; }
+        @S .login-divider span { letter-spacing: 0.22em !important; color: var(--sr2-divider) !important; }
+        @S .sr-legal { color: var(--sr2-legal) !important; }
+        @S .sr-legal a { color: var(--sr2-legal-link) !important; }
+        @S .sr-hint { color: var(--sr2-hint) !important; }
 
         /* Focus ring >= 3:1 on every button (2px outline, offset onto the panel) */
         @S [data-testid="stFormSubmitButton"] button:focus-visible,
@@ -195,14 +184,14 @@ _V2_DARK_CSS = """
         @S .st-key-theme_toggle_btn button:focus-visible {
             outline: 2px solid var(--sr2-ring) !important; outline-offset: 3px !important;
         }
-""".replace('@S', '.stApp:has(.sr-scene.sr-v2)')
+"""
 
 
 # ── Phase C (hero) ──────────────────────────────────────────────────────────
 # Static markup, emitted only when the switch is on (see _scene_html). The new
-# pieces carry `hidden`, so with the switch on but no v2 CSS (light theme) they
-# take no space; the bare .sr2-card wrapper is then a plain block of the same
-# height as the chart it wraps. No ids: nothing here can collide with sr-* ids.
+# pieces carry `hidden` (the v2 CSS shows them), so if the CSS ever fails to
+# load they take no space; the bare .sr2-card wrapper is then a plain block of
+# the same height as the chart it wraps. No ids: nothing can collide with sr-* ids.
 _V2_CHART_CARD_OPEN = (
     '<div class="sr2-card">'
     '<div class="sr2-cardhead" hidden>'
@@ -217,8 +206,8 @@ _V2_CHART_CARD_OPEN = (
     '<div class="sr2-y" hidden aria-hidden="true"><span>100%</span><span>50%</span><span>0%</span></div>'
     '<div class="sr2-grid" hidden aria-hidden="true"><i></i><i></i><i></i></div>'
 )
-# Inline style keeps the light theme (no v2 CSS) looking like the off state:
-# normal weight, and the flex gap of the caption is cancelled down to a space.
+# Inline style: the flex gap of the caption is cancelled down to a space; the v2
+# CSS makes it bold (normal weight if that CSS is missing).
 _V2_BEST_WINDOW = '<b style="font-weight:inherit;margin-left:calc(0.25em - 8px)">Friday, 6 PM.</b>'
 
 
@@ -227,23 +216,32 @@ def _svg_url(svg):
     return 'url("data:image/svg+xml,' + quote(svg, safe='') + '")'
 
 
-def _spark_svg(points):
+def _spark_svg(points, fill='#8B5CF6', fill_opacity='.38', stroke='#A78BFA'):
     return (
         "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 16'>"
         "<defs><linearGradient id='sr2-sf' x1='0' y1='0' x2='0' y2='1'>"
-        "<stop offset='0' stop-color='#8B5CF6' stop-opacity='.38'/>"
-        "<stop offset='1' stop-color='#8B5CF6' stop-opacity='0'/></linearGradient></defs>"
+        f"<stop offset='0' stop-color='{fill}' stop-opacity='{fill_opacity}'/>"
+        f"<stop offset='1' stop-color='{fill}' stop-opacity='0'/></linearGradient></defs>"
         f"<path d='M{points} L39 16 L1 16 Z' fill='url(#sr2-sf)'/>"
-        f"<path d='M{points}' fill='none' stroke='#A78BFA' stroke-width='1.6'"
+        f"<path d='M{points}' fill='none' stroke='{stroke}' stroke-width='1.6'"
         " stroke-linecap='round' stroke-linejoin='round'/></svg>"
     )
 
 
-def _icon_svg(body, width='2'):
+def _icon_svg(body, width='2', stroke='#DDD6FE'):
     return (
-        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='#DDD6FE'"
+        f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='{stroke}'"
         f" stroke-width='{width}' stroke-linecap='round' stroke-linejoin='round'>{body}</svg>"
     )
+
+
+_ICON_EYE = "<path d='M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z'/><circle cx='12' cy='12' r='3'/>"
+_ICON_PEOPLE = ("<path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/>"
+                "<path d='M22 21v-2a4 4 0 0 0-3-3.87'/><path d='M16 3.13a4 4 0 0 1 0 7.75'/>")
+_ICON_BARS = "<path d='M6 20v-7M12 20V5M18 20V10'/>"
+_SPARK_PTS = ('1 12 L6 10 L10 11 L15 6 L19 8 L24 5 L28 7 L33 3 L39 4',
+              '1 11 L5 12 L9 9 L14 10 L18 6 L23 8 L27 5 L32 7 L39 3',
+              '1 13 L6 12 L10 13 L14 9 L19 10 L24 7 L28 8 L33 4 L39 2')
 
 
 _V2_SVG = {
@@ -303,13 +301,12 @@ _V2_SVG = {
         " stroke-width='8' stroke-linejoin='round'/>"
         "</svg>"
     ),
-    '@ICONEYE': _icon_svg("<path d='M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z'/><circle cx='12' cy='12' r='3'/>"),
-    '@ICONPEOPLE': _icon_svg("<path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/>"
-                             "<path d='M22 21v-2a4 4 0 0 0-3-3.87'/><path d='M16 3.13a4 4 0 0 1 0 7.75'/>"),
-    '@ICONBARS': _icon_svg("<path d='M6 20v-7M12 20V5M18 20V10'/>", width='2.4'),
-    '@KPILINE1': _spark_svg('1 12 L6 10 L10 11 L15 6 L19 8 L24 5 L28 7 L33 3 L39 4'),
-    '@KPILINE2': _spark_svg('1 11 L5 12 L9 9 L14 10 L18 6 L23 8 L27 5 L32 7 L39 3'),
-    '@KPILINE3': _spark_svg('1 13 L6 12 L10 13 L14 9 L19 10 L24 7 L28 8 L33 4 L39 2'),
+    '@ICONEYE': _icon_svg(_ICON_EYE),
+    '@ICONPEOPLE': _icon_svg(_ICON_PEOPLE),
+    '@ICONBARS': _icon_svg(_ICON_BARS, width='2.4'),
+    '@KPILINE1': _spark_svg(_SPARK_PTS[0]),
+    '@KPILINE2': _spark_svg(_SPARK_PTS[1]),
+    '@KPILINE3': _spark_svg(_SPARK_PTS[2]),
     '@CLOCK': (
         "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
         "<circle cx='12' cy='12' r='11' fill='#EAB308'/>"
@@ -319,9 +316,82 @@ _V2_SVG = {
     ),
 }
 
+# Light-theme versions of the same SVGs, tuned for white/lavender backgrounds.
+_V2_SVG_LIGHT = {
+    '@WAVES': (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 300' preserveAspectRatio='none'>"
+        "<defs>"
+        "<linearGradient id='sr2-wa' x1='0' y1='0' x2='1' y2='0'>"
+        "<stop offset='0' stop-color='#C4B5FD' stop-opacity='.10'/>"
+        "<stop offset='.6' stop-color='#A78BFA' stop-opacity='.30'/>"
+        "<stop offset='1' stop-color='#818CF8' stop-opacity='.24'/></linearGradient>"
+        "<linearGradient id='sr2-wb' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#C4B5FD' stop-opacity='.42'/>"
+        "<stop offset='1' stop-color='#EDE9FE' stop-opacity='.30'/></linearGradient>"
+        "</defs>"
+        "<path d='M0 170 C150 120 260 210 420 180 C560 154 660 100 800 118 L800 300 L0 300 Z' fill='url(#sr2-wa)'/>"
+        "<path d='M0 230 C170 196 300 262 470 232 C610 208 700 176 800 186 L800 300 L0 300 Z' fill='url(#sr2-wb)'/>"
+        "<path d='M0 170 C150 120 260 210 420 180 C560 154 660 100 800 118' fill='none' stroke='#8B5CF6'"
+        " stroke-opacity='.35' stroke-width='1.2' vector-effect='non-scaling-stroke'/>"
+        "<path d='M0 230 C170 196 300 262 470 232 C610 208 700 176 800 186' fill='none' stroke='#A78BFA'"
+        " stroke-opacity='.25' stroke-width='1' vector-effect='non-scaling-stroke'/>"
+        "</svg>"
+    ),
+    '@CUBE': (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 230'>"
+        "<defs>"
+        "<filter id='sr2-cb' x='-60%' y='-60%' width='220%' height='220%'><feGaussianBlur stdDeviation='14'/></filter>"
+        "<filter id='sr2-cs' x='-60%' y='-60%' width='220%' height='220%'><feGaussianBlur stdDeviation='7'/></filter>"
+        "<filter id='sr2-cg' x='-60%' y='-60%' width='220%' height='220%'><feGaussianBlur stdDeviation='5'/></filter>"
+        "<linearGradient id='sr2-cf' x1='0' y1='0' x2='1' y2='1'>"
+        "<stop offset='0' stop-color='#FFFFFF' stop-opacity='.92'/>"
+        "<stop offset='.5' stop-color='#F3EEFF' stop-opacity='.80'/>"
+        "<stop offset='1' stop-color='#DDD6FE' stop-opacity='.85'/></linearGradient>"
+        "<linearGradient id='sr2-ct' x1='0' y1='1' x2='1' y2='0'>"
+        "<stop offset='0' stop-color='#FFFFFF' stop-opacity='.95'/>"
+        "<stop offset='1' stop-color='#EDE9FE' stop-opacity='.85'/></linearGradient>"
+        "<linearGradient id='sr2-cr' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#DDD6FE' stop-opacity='.95'/>"
+        "<stop offset='1' stop-color='#C4B5FD' stop-opacity='.90'/></linearGradient>"
+        "<linearGradient id='sr2-cp' x1='0' y1='0' x2='1' y2='1'>"
+        "<stop offset='0' stop-color='#A78BFA'/><stop offset='.5' stop-color='#7C3AED'/>"
+        "<stop offset='1' stop-color='#5B21B6'/></linearGradient>"
+        "<linearGradient id='sr2-ch' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#FFFFFF' stop-opacity='.85'/>"
+        "<stop offset='1' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient>"
+        "</defs>"
+        "<circle cx='118' cy='120' r='58' fill='#A78BFA' opacity='.22' filter='url(#sr2-cb)'/>"
+        "<ellipse cx='112' cy='202' rx='72' ry='7' fill='#7C3AED' opacity='.30' filter='url(#sr2-cs)'/>"
+        "<path d='M180 64 L206 42 L206 164 L180 190 Z' fill='url(#sr2-cr)' stroke='#A78BFA'"
+        " stroke-opacity='.55' stroke-width='1.2' stroke-linejoin='round'/>"
+        "<path d='M40 63 L66 41 L204 41 L178 63 Z' fill='url(#sr2-ct)' stroke='#C4B5FD'"
+        " stroke-opacity='.70' stroke-width='1.2' stroke-linejoin='round'/>"
+        "<rect x='30' y='62' width='150' height='136' rx='24' fill='url(#sr2-cf)' stroke='#A78BFA'"
+        " stroke-opacity='.65' stroke-width='1.5'/>"
+        "<path d='M54 70 H156 Q170 70 172 84 Q118 96 38 116 V86 Q38 70 54 70 Z' fill='url(#sr2-ch)' opacity='.70'/>"
+        "<path d='M92 106 L92 156 L138 131 Z' fill='#8B5CF6' opacity='.45' filter='url(#sr2-cg)'/>"
+        "<path d='M92 106 L92 156 L138 131 Z' fill='url(#sr2-cp)' stroke='url(#sr2-cp)'"
+        " stroke-width='8' stroke-linejoin='round'/>"
+        "</svg>"
+    ),
+    '@ICONEYE': _icon_svg(_ICON_EYE, stroke='#6D28D9'),
+    '@ICONPEOPLE': _icon_svg(_ICON_PEOPLE, stroke='#6D28D9'),
+    '@ICONBARS': _icon_svg(_ICON_BARS, width='2.4', stroke='#6D28D9'),
+    '@KPILINE1': _spark_svg(_SPARK_PTS[0], fill_opacity='.22', stroke='#7C3AED'),
+    '@KPILINE2': _spark_svg(_SPARK_PTS[1], fill_opacity='.22', stroke='#7C3AED'),
+    '@KPILINE3': _spark_svg(_SPARK_PTS[2], fill_opacity='.22', stroke='#7C3AED'),
+    '@CLOCK': (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+        "<circle cx='12' cy='12' r='11' fill='#EAB308' stroke='#A16207' stroke-opacity='.55' stroke-width='1'/>"
+        "<circle cx='12' cy='12' r='8.2' fill='none' stroke='#FEF3C7' stroke-opacity='.65' stroke-width='1'/>"
+        "<path d='M12 6.8V12l3.4 2.1' fill='none' stroke='#1C1404' stroke-width='2.2'"
+        " stroke-linecap='round' stroke-linejoin='round'/></svg>"
+    ),
+}
+
 _V2_HERO_CSS = """
 
-        /* ═══════════════ LOGIN_UI_V2 · dark only · phase C (hero) ═══════════════ */
+        /* ═══════════════ LOGIN_UI_V2 · phase C (hero) ═══════════════ */
         @S {
             --sr2-cpt: clamp(3px, 0.5vh, 8px);     /* card padding top/bottom (.block-container) */
             --sr2-cpl: clamp(10px, 1.4vw, 18px);   /* card padding left/right */
@@ -332,16 +402,35 @@ _V2_HERO_CSS = """
         @S .sr-scene.sr-v2 {
             isolation: isolate;
             --sr2-chart-h: clamp(88px, 13vh, 128px);   /* same as the base .sr-chart height */
-            background: linear-gradient(160deg, #1B1233 0%, #120C22 48%, #0B0816 100%);
+            background: var(--sr2-hero-bg);
+            color: var(--sr2-hero-fg);
         }
         @S .sr-scene.sr-v2::before {
             content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
             background:
-                radial-gradient(48% 40% at 94% 4%, rgba(139,92,246,0.45), transparent 72%),
-                radial-gradient(36% 30% at 72% 30%, rgba(124,58,237,0.16), transparent 75%),
-                @WAVES bottom / 100% clamp(150px, 34%, 260px) no-repeat,
-                radial-gradient(circle, rgba(196,181,253,0.11) 1px, transparent 1.5px) 0 0 / 18px 18px;
+                radial-gradient(48% 40% at 94% 4%, var(--sr2-glow-a), transparent 72%),
+                radial-gradient(36% 30% at 72% 30%, var(--sr2-glow-b), transparent 75%),
+                var(--sr2-waves) bottom / 100% clamp(150px, 34%, 260px) no-repeat,
+                radial-gradient(circle, var(--sr2-hero-dots) 1px, transparent 1.5px) 0 0 / 18px 18px;
         }
+        /* C1b · hero text and surfaces. In dark these values equal the base
+           (always-dark) hero, so dark looks the same; light gets its own palette. */
+        @S .sr-scene.sr-v2 .sr-eyebrow { color: var(--sr2-eyebrow); }
+        @S .sr-scene.sr-v2 .sr-live {
+            color: var(--sr2-live-fg); background: var(--sr2-live-bg); border-color: var(--sr2-live-border);
+        }
+        @S .sr-scene.sr-v2 .sr-h1 { color: var(--sr2-hero-fg); }
+        @S .sr-scene.sr-v2 .sr-grad { background-image: var(--sr2-grad); }
+        @S .sr-scene.sr-v2 .sr-sub { color: var(--sr2-hero-sub); }
+        @S .sr-scene.sr-v2 .sr-playhead { background: var(--sr2-playhead); }
+        @S .sr-scene.sr-v2 .sr-times { color: var(--sr2-hero-faint); }
+        @S .sr-scene.sr-v2 .sr-kpi {
+            background: var(--sr2-kpi-bg); border-color: var(--sr2-kpi-border); box-shadow: var(--sr2-kpi-shadow);
+        }
+        @S .sr-scene.sr-v2 .sr-kpi-val { color: var(--sr2-hero-fg); }
+        @S .sr-scene.sr-v2 .sr-kpi-val .up { color: var(--sr2-kpi-up); }
+        @S .sr-scene.sr-v2 .sr-kpi-label { color: var(--sr2-hero-faint); }
+        @S .sr-scene.sr-v2 .sr-captions span { color: var(--sr2-hero-sub); }
         /* Edge to edge: the hero grows over the card padding (left, top, bottom, 1px
            short so the card border stays visible) and adds the same amount to its own
            padding, so its content box does not move or change size. */
@@ -366,7 +455,7 @@ _V2_HERO_CSS = """
         @S .sr-scene.sr-v2::after {
             content: ""; order: 1; flex: none; align-self: flex-end;
             width: 124px; height: 112px; margin: -112px 0 0;
-            background: @CUBE center / contain no-repeat;
+            background: var(--sr2-cube) center / contain no-repeat;
             pointer-events: none;
         }
         @media (max-width: 1239px) {
@@ -385,21 +474,21 @@ _V2_HERO_CSS = """
         @S .sr2-card {
             position: relative;
             padding: 10px 14px 6px 44px;
-            border: 1px solid rgba(167,139,250,0.24); border-radius: 16px;
-            background: linear-gradient(180deg, rgba(34,24,58,0.78) 0%, rgba(20,14,36,0.78) 100%);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.25);
+            border: 1px solid var(--sr2-chartcard-border); border-radius: 16px;
+            background: var(--sr2-chartcard-bg);
+            box-shadow: var(--sr2-chartcard-shadow);
         }
         @S .sr2-cardhead {
             display: flex !important; align-items: center; gap: 7px;
             height: 22px; margin: 0 0 6px -30px;
-            color: #A39CB5;
+            color: var(--sr2-chart-muted);
         }
-        @S .sr2-cardtitle { font-size: 13px; font-weight: 600; color: #EDE9FE; }
+        @S .sr2-cardtitle { font-size: 13px; font-weight: 600; color: var(--sr2-chart-title); }
         @S .sr2-info { flex: none; }
         @S .sr2-chip {
             margin-left: auto; padding: 2px 10px; border-radius: 999px; white-space: nowrap;
-            font-size: 11px; font-weight: 500; color: #C4B5FD;
-            background: rgba(124,58,237,0.14); border: 1px solid rgba(167,139,250,0.30);
+            font-size: 11px; font-weight: 500; color: var(--sr2-chip-fg);
+            background: var(--sr2-chip-bg); border: 1px solid var(--sr2-chip-border);
         }
         /* Labels and grid cover the svg box: top = card padding 10 + head 22 + 6. */
         @S .sr2-y, @S .sr2-grid {
@@ -408,7 +497,7 @@ _V2_HERO_CSS = """
         }
         @S .sr2-y {
             left: 8px; width: 30px;
-            font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: #A39CB5;
+            font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--sr2-chart-muted);
         }
         @S .sr2-y span { position: absolute; right: 0; transform: translateY(-50%); line-height: 1; }
         /* JS: pct = (210 - y) / 190 -> 100% at y=20, 50% at y=115, 0% at y=210 (of 210) */
@@ -417,9 +506,9 @@ _V2_HERO_CSS = """
         @S .sr2-y span:nth-child(3) { top: 100%; }
         @S .sr2-grid {
             left: 44px; right: 14px;
-            background: repeating-linear-gradient(to right, rgba(167,139,250,0.07) 0 1px, transparent 1px calc(100% / 6));
+            background: repeating-linear-gradient(to right, var(--sr2-grid-v) 0 1px, transparent 1px calc(100% / 6));
         }
-        @S .sr2-grid i { position: absolute; left: 0; right: 0; height: 1px; background: rgba(167,139,250,0.16); }
+        @S .sr2-grid i { position: absolute; left: 0; right: 0; height: 1px; background: var(--sr2-grid-h); }
         @S .sr2-grid i:nth-child(3) { top: calc(100% - 1px); }
         @S .sr-scene.sr-v2 .sr-chart { height: var(--sr2-chart-h); }
         @S .sr-scene.sr-v2 .sr-chart > g { display: none; }   /* old grid; the card grid replaces it */
@@ -442,27 +531,27 @@ _V2_HERO_CSS = """
             @S .sr-scene.sr-v2 .sr-kpi-label { grid-area: lab; white-space: nowrap; }
             @S .sr-scene.sr-v2 .sr-kpi::before {
                 content: ""; grid-area: icon; width: 28px; height: 28px; border-radius: 50%;
-                box-sizing: border-box; border: 1px solid rgba(167,139,250,0.35);
-                background: rgba(124,58,237,0.22) center / 15px 15px no-repeat;
+                box-sizing: border-box; border: 1px solid var(--sr2-kpi-icon-border);
+                background: var(--sr2-kpi-icon-bg) center / 15px 15px no-repeat;
             }
-            @S .sr-scene.sr-v2 .sr-kpi:nth-child(1)::before { background-image: @ICONEYE; }
-            @S .sr-scene.sr-v2 .sr-kpi:nth-child(2)::before { background-image: @ICONPEOPLE; }
-            @S .sr-scene.sr-v2 .sr-kpi:nth-child(3)::before { background-image: @ICONBARS; }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(1)::before { background-image: var(--sr2-icon-eye); }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(2)::before { background-image: var(--sr2-icon-people); }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(3)::before { background-image: var(--sr2-icon-bars); }
             @S .sr-scene.sr-v2 .sr-kpi::after {
                 content: ""; grid-area: spark; justify-self: end; width: 34px; height: 14px;
                 background: center / contain no-repeat;
             }
-            @S .sr-scene.sr-v2 .sr-kpi:nth-child(1)::after { background-image: @KPILINE1; }
-            @S .sr-scene.sr-v2 .sr-kpi:nth-child(2)::after { background-image: @KPILINE2; }
-            @S .sr-scene.sr-v2 .sr-kpi:nth-child(3)::after { background-image: @KPILINE3; }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(1)::after { background-image: var(--sr2-spark-1); }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(2)::after { background-image: var(--sr2-spark-2); }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(3)::after { background-image: var(--sr2-spark-3); }
         }
 
         /* C6 · tip line: yellow clock instead of the bullet; bold best window */
         @S .sr-scene.sr-v2 .sr-captions span::before {
             content: ""; flex: none; width: 16px; height: 16px;
-            background: @CLOCK center / contain no-repeat;
+            background: var(--sr2-clock) center / contain no-repeat;
         }
-        @S .sr-scene.sr-v2 .sr-captions b { font-weight: 700 !important; color: #F5F2FA; }
+        @S .sr-scene.sr-v2 .sr-captions b { font-weight: 700 !important; color: var(--sr2-tip-strong); }
 
         /* C7 · no heading anchor-link icon on hover */
         @S .sr-scene.sr-v2 [data-testid="stHeaderActionElements"] { display: none !important; }
@@ -488,10 +577,120 @@ _V2_HERO_CSS = """
             @S .sr-scene.sr-v2 .sr-top { padding-right: 0; }
             @S .sr-scene.sr-v2 .sr-h1 { padding-top: 0 !important; padding-bottom: 0 !important; }
         }
+        /* Short phones: no hero banner at all, so the whole form (Sign in and the
+           Terms line included) fits the card. Hidden with CSS only; every hero
+           element stays in the DOM for the chart script. */
+        @media (max-width: 600px) and (max-height: 700px) {
+            @S [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"]:nth-of-type(1) {
+                display: none !important;
+            }
+        }
 """
-for _token, _svg in _V2_SVG.items():
-    _V2_HERO_CSS = _V2_HERO_CSS.replace(_token, _svg_url(_svg))
-_V2_DARK_CSS += _V2_HERO_CSS.replace('@S', '.stApp:has(.sr-scene.sr-v2)')
+_V2_SCOPE = '.stApp:has(.sr-scene.sr-v2)'
+_V2_RULES = (_V2_RULES_AB + _V2_HERO_CSS).replace('@S', _V2_SCOPE)
+
+
+def _v2_svg_vars(svgs):
+    return {
+        'waves': _svg_url(svgs['@WAVES']), 'cube': _svg_url(svgs['@CUBE']),
+        'icon-eye': _svg_url(svgs['@ICONEYE']), 'icon-people': _svg_url(svgs['@ICONPEOPLE']),
+        'icon-bars': _svg_url(svgs['@ICONBARS']),
+        'spark-1': _svg_url(svgs['@KPILINE1']), 'spark-2': _svg_url(svgs['@KPILINE2']),
+        'spark-3': _svg_url(svgs['@KPILINE3']), 'clock': _svg_url(svgs['@CLOCK']),
+    }
+
+
+# Theme values for the v2 rules (the v2 counterpart of dashboard.theme tokens).
+# Dark = the values the dark v2 used before the light theme existed.
+_V2_THEME = {
+    'dark': {
+        # A · page + card
+        'page-bg': ('radial-gradient(54% 48% at 14% 14%, rgba(124,58,237,0.34), transparent 72%), '
+                    'radial-gradient(50% 46% at 90% 88%, rgba(91,108,255,0.24), transparent 72%), '
+                    'radial-gradient(70% 60% at 50% 50%, rgba(76,29,149,0.20), transparent 78%), #0E0A16'),
+        'page-dots': 'rgba(196,181,253,0.30)',
+        'card-bg': ('linear-gradient(180deg, #221A38 0%, #1C1531 100%) padding-box, '
+                    'linear-gradient(135deg, rgba(196,181,253,0.85) 0%, rgba(124,58,237,0.55) 38%, '
+                    'rgba(91,108,255,0.45) 68%, rgba(167,139,250,0.80) 100%) border-box'),
+        'card-shadow': ('inset 0 0 46px rgba(124,58,237,0.26), inset 0 0 0 1px rgba(196,181,253,0.10), '
+                        '0 0 12px rgba(124,58,237,0.38), 0 40px 110px rgba(0,0,0,0.6)'),
+        # B · form side
+        'ring': '#DDD6FE',
+        'input-bg': 'rgba(11,8,20,0.55)', 'input-border': 'rgba(167,139,250,0.34)',
+        'placeholder': '#9D95B2', 'label': '#B4ADC6', 'icon': '#B7AFCB',
+        'google-bg': 'rgba(255,255,255,0.045)', 'google-border': 'rgba(167,139,250,0.34)',
+        'link': '#B9A6FC', 'link-hover': '#DDD6FE',
+        'divider': '#A39CB5', 'legal': '#B4ADC6', 'legal-link': '#C4B5FD', 'hint': '#A39CB5',
+        # C · hero
+        'hero-bg': 'linear-gradient(160deg, #1B1233 0%, #120C22 48%, #0B0816 100%)',
+        'glow-a': 'rgba(139,92,246,0.45)', 'glow-b': 'rgba(124,58,237,0.16)',
+        'hero-dots': 'rgba(196,181,253,0.11)',
+        'hero-fg': '#F5F2FA', 'hero-sub': '#A39CB5', 'hero-faint': '#736B85',
+        'eyebrow': '#A78BFA', 'grad': 'linear-gradient(100deg, #A78BFA, #5B6CFF)',
+        'live-fg': '#FFD3D3', 'live-bg': 'rgba(255,75,75,0.10)', 'live-border': 'rgba(255,75,75,0.32)',
+        'playhead': ('linear-gradient(rgba(245,242,250,0.0), rgba(245,242,250,0.5) 30%, '
+                     'rgba(245,242,250,0.5))'),
+        'chartcard-border': 'rgba(167,139,250,0.24)',
+        'chartcard-bg': 'linear-gradient(180deg, rgba(34,24,58,0.78) 0%, rgba(20,14,36,0.78) 100%)',
+        'chartcard-shadow': 'inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.25)',
+        'chart-muted': '#A39CB5', 'chart-title': '#EDE9FE',
+        'chip-fg': '#C4B5FD', 'chip-bg': 'rgba(124,58,237,0.14)', 'chip-border': 'rgba(167,139,250,0.30)',
+        'grid-v': 'rgba(167,139,250,0.07)', 'grid-h': 'rgba(167,139,250,0.16)',
+        'kpi-bg': 'rgba(167,139,250,0.05)', 'kpi-border': 'rgba(167,139,250,0.18)', 'kpi-shadow': 'none',
+        'kpi-up': '#34D399',
+        'kpi-icon-border': 'rgba(167,139,250,0.35)', 'kpi-icon-bg': 'rgba(124,58,237,0.22)',
+        'tip-strong': '#F5F2FA',
+        **_v2_svg_vars(_V2_SVG),
+    },
+    'light': {
+        # A · page + card
+        'page-bg': ('radial-gradient(54% 48% at 14% 14%, rgba(124,58,237,0.14), transparent 72%), '
+                    'radial-gradient(50% 46% at 90% 88%, rgba(91,108,255,0.10), transparent 72%), '
+                    'radial-gradient(70% 60% at 50% 50%, rgba(167,139,250,0.12), transparent 78%), #F3EFFC'),
+        'page-dots': 'rgba(124,58,237,0.22)',
+        'card-bg': ('linear-gradient(180deg, #FFFFFF 0%, #F6F2FF 100%) padding-box, '
+                    'linear-gradient(135deg, rgba(167,139,250,0.90) 0%, rgba(124,58,237,0.45) 38%, '
+                    'rgba(91,108,255,0.40) 68%, rgba(167,139,250,0.85) 100%) border-box'),
+        'card-shadow': ('inset 0 0 40px rgba(124,58,237,0.08), inset 0 0 0 1px rgba(255,255,255,0.60), '
+                        '0 0 12px rgba(124,58,237,0.18), 0 30px 80px rgba(76,29,149,0.14)'),
+        # B · form side
+        'ring': '#6D28D9',
+        'input-bg': '#FFFFFF', 'input-border': '#8C83A6',
+        'placeholder': '#6E6785', 'label': '#5F5873', 'icon': '#7A7096',
+        'google-bg': '#FFFFFF', 'google-border': '#8C83A6',
+        'link': '#6D28D9', 'link-hover': '#5B21B6',
+        'divider': '#6B6480', 'legal': '#5F5873', 'legal-link': '#6D28D9', 'hint': '#6B6480',
+        # C · hero
+        'hero-bg': 'linear-gradient(160deg, #FFFFFF 0%, #F7F3FF 50%, #EFE8FF 100%)',
+        'glow-a': 'rgba(139,92,246,0.22)', 'glow-b': 'rgba(124,58,237,0.07)',
+        'hero-dots': 'rgba(124,58,237,0.10)',
+        'hero-fg': '#1A1426', 'hero-sub': '#4F4866', 'hero-faint': '#5F5873',
+        'eyebrow': '#6D28D9', 'grad': 'linear-gradient(100deg, #6D28D9, #4338CA)',
+        'live-fg': '#B91C1C', 'live-bg': 'rgba(220,38,38,0.06)', 'live-border': 'rgba(220,38,38,0.35)',
+        'playhead': ('linear-gradient(rgba(109,40,217,0.0), rgba(109,40,217,0.45) 30%, '
+                     'rgba(109,40,217,0.45))'),
+        'chartcard-border': 'rgba(124,58,237,0.18)',
+        'chartcard-bg': 'linear-gradient(180deg, #FFFFFF 0%, #FBF9FF 100%)',
+        'chartcard-shadow': 'inset 0 1px 0 #FFFFFF, 0 10px 28px rgba(76,29,149,0.08)',
+        'chart-muted': '#5F5873', 'chart-title': '#1A1426',
+        'chip-fg': '#5B21B6', 'chip-bg': 'rgba(124,58,237,0.08)', 'chip-border': 'rgba(124,58,237,0.28)',
+        'grid-v': 'rgba(91,84,112,0.08)', 'grid-h': 'rgba(91,84,112,0.18)',
+        'kpi-bg': '#FFFFFF', 'kpi-border': 'rgba(124,58,237,0.16)',
+        'kpi-shadow': '0 6px 18px rgba(76,29,149,0.06)',
+        'kpi-up': '#047857',
+        'kpi-icon-border': 'rgba(124,58,237,0.28)', 'kpi-icon-bg': 'rgba(124,58,237,0.10)',
+        'tip-strong': '#1A1426',
+        **_v2_svg_vars(_V2_SVG_LIGHT),
+    },
+}
+
+
+def _v2_css(mode):
+    """The v2 block for one theme: its values, then the shared rules."""
+    values = _V2_THEME['dark' if mode == 'dark' else 'light']
+    decl = ''.join(f'\n            --sr2-{name}: {value};' for name, value in values.items())
+    return (f'\n\n        /* LOGIN_UI_V2 · {mode} theme values */\n        {_V2_SCOPE} {{{decl}\n        }}'
+            + _V2_RULES)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -512,8 +711,8 @@ def _inject_login_styles(mode='light'):
     # reads landscape (wide + short) like option_a_split_showcase.html.
     form_pad = ('clamp(14px, 1.8vh, 26px) clamp(38px, 3.6vw, 52px)' if is_dark
                 else 'clamp(12px, 1.6vh, 22px) clamp(32px, 3.2vw, 46px)')
-    # LOGIN_UI_V2: dark theme only; empty (nothing emitted) otherwise.
-    v2_css = _V2_DARK_CSS if (is_dark and _ui_v2_enabled()) else ''
+    # LOGIN_UI_V2: both themes; nothing is emitted when the switch is off.
+    v2_css = _v2_css(mode) if _ui_v2_enabled() else ''
 
     st.markdown(f"""
     <style>

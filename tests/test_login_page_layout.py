@@ -244,7 +244,7 @@ def test_switch_rejects_other_values(monkeypatch, value):
     assert login_page._ui_v2_enabled() is False
 
 
-def test_switch_on_adds_class_and_dark_css_only(monkeypatch):
+def test_switch_on_adds_class_and_v2_css_in_both_themes(monkeypatch):
     import login_page
 
     _enable_v2(monkeypatch)
@@ -271,19 +271,32 @@ def test_switch_on_adds_class_and_dark_css_only(monkeypatch):
     assert re.sub(r"<b[^>]*>|</b>", "", scene.split('<div class="sr-captions">')[1]) \
         == off_scene.split('<div class="sr-captions">')[1]
 
-    dark = _style_string("dark")
-    assert _V2_SCOPE in dark
-    assert "@S" not in dark
+    # Both themes get the v2 block: the same rules, only the values differ. The
+    # scene class does not depend on the theme, so the hero never remounts.
+    dark, light = _style_string("dark"), _style_string("light")
+    for css, mode in ((dark, "dark"), (light, "light")):
+        assert _V2_SCOPE in css
+        assert "@S" not in css
+        assert f"LOGIN_UI_V2 · {mode} theme values" in css
+        assert login_page._V2_RULES in css
+    assert dark != light
 
-    # Light theme: no v2 CSS at all, byte-identical to HEAD; the scene class
-    # does not depend on the theme, so the hero never remounts on a toggle.
-    assert _sha(_style_string("light")) == _HEAD_STYLE_SHA["light"]
 
-
-def test_v2_css_rules_are_all_scoped(monkeypatch):
+def test_v2_theme_values_cover_every_variable():
     import login_page
 
-    css = re.sub(r"/\*.*?\*/", "", login_page._V2_DARK_CSS, flags=re.S)
+    dark, light = login_page._V2_THEME["dark"], login_page._V2_THEME["light"]
+    assert dark.keys() == light.keys()
+    used = set(re.findall(r"var\(--sr2-([\w-]+)\)", login_page._V2_RULES))
+    set_in_rules = set(re.findall(r"--sr2-([\w-]+)\s*:", login_page._V2_RULES))
+    assert used <= set(dark) | set_in_rules, used - set(dark) - set_in_rules
+
+
+@pytest.mark.parametrize("mode", ["dark", "light"])
+def test_v2_css_rules_are_all_scoped(mode):
+    import login_page
+
+    css = re.sub(r"/\*.*?\*/", "", login_page._v2_css(mode), flags=re.S)
     # Keyframe steps (from/to/50%) are not selectors; names must be sr2- prefixed.
     keyframes = re.findall(r"@keyframes\s+([\w-]+)\s*\{(?:[^{}]*\{[^{}]*\})*\s*\}", css)
     assert all(name.startswith("sr2-") for name in keyframes)
