@@ -466,6 +466,28 @@ _V2_HERO_CSS = """
 
         /* C7 · no heading anchor-link icon on hover */
         @S .sr-scene.sr-v2 [data-testid="stHeaderActionElements"] { display: none !important; }
+
+        /* D1 · stacked layout (900px and below). The base page crops the hero to a
+           fixed-height banner, which cut the chart card, the subtitle or the
+           headline mid-line. In v2 the banner takes its content height instead and
+           the decorative parts are hidden rather than cropped. */
+        @media (max-width: 900px) {
+            @S [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"]:nth-of-type(1) {
+                height: auto !important;
+            }
+            @S .sr-scene.sr-v2 .sr2-card, @S .sr-scene.sr-v2 .sr-kpis { display: none; }
+            /* keep the LIVE chip clear of the theme toggle in the card corner */
+            @S .sr-scene.sr-v2 .sr-top { padding-right: 28px; }
+            /* low waves under the text instead of through it */
+            @S .sr-scene.sr-v2::before { background-size: auto, auto, 100% 64px, 18px 18px; }
+        }
+        /* Phones: headline only in the banner, so Google and Sign in stay on screen
+           (390x844, error shown). Hidden, not shrunk. */
+        @media (max-width: 600px) {
+            @S .sr-scene.sr-v2 .sr-sub, @S .sr-scene.sr-v2 .sr-live, @S .sr-logo { display: none; }
+            @S .sr-scene.sr-v2 .sr-top { padding-right: 0; }
+            @S .sr-scene.sr-v2 .sr-h1 { padding-top: 0 !important; padding-bottom: 0 !important; }
+        }
 """
 for _token, _svg in _V2_SVG.items():
     _V2_HERO_CSS = _V2_HERO_CSS.replace(_token, _svg_url(_svg))
