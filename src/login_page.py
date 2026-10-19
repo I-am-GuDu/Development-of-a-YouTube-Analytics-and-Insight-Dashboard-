@@ -15,6 +15,8 @@ Design constraints honoured from the codebase:
   * Sign-in / sign-up run in Streamlit itself (see auth.py): email + password
     against the app's users table, or "Continue with Google" via Neon Auth.
 """
+import os
+from functools import lru_cache
 from html import escape
 
 import streamlit as st
@@ -28,6 +30,171 @@ from auth import (
     start_google_sign_in,
 )
 from dashboard import theme as theme_tokens
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LOGIN_UI_V2 switch (default off)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@lru_cache(maxsize=1)
+def _ui_v2_enabled():
+    """True when LOGIN_UI_V2 is 1/true/yes/on. Read once per process (the first
+    render, after main.py has loaded .env), so every rerun and every session
+    sees the same value and the element tree never changes between runs."""
+    return os.getenv('LOGIN_UI_V2', '').strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+# v2 look, dark theme only (phases A + B). Plain string (real CSS braces); every
+# rule starts with @S, which becomes `.stApp:has(.sr-scene.sr-v2)`, so nothing
+# can reach the dashboard or the off state. No external URLs: icons are inline
+# SVG data URIs. No animation is added.
+_V2_DARK_CSS = """
+
+        /* ═══════════════ LOGIN_UI_V2 · dark only · phases A + B ═══════════════ */
+
+        /* A · page: purple glow + dot texture behind the card; shared v2 sizes */
+        @S {
+            --sr2-h: clamp(38px, 6.2vh, 56px);
+            --sr2-gap: clamp(6px, 1.85vh, 16px);
+            --sr2-tp: clamp(0px, calc(3vh - 12px), 16px);
+            --sr2-ring: #DDD6FE;
+            background:
+                radial-gradient(54% 48% at 14% 14%, rgba(124,58,237,0.34), transparent 72%),
+                radial-gradient(50% 46% at 90% 88%, rgba(91,108,255,0.24), transparent 72%),
+                radial-gradient(70% 60% at 50% 50%, rgba(76,29,149,0.20), transparent 78%),
+                #0E0A16 !important;
+        }
+        @S::before {
+            background-image: radial-gradient(circle, rgba(196,181,253,0.30) 1px, transparent 1.4px);
+            background-size: 22px 22px;
+            -webkit-mask: radial-gradient(95% 95% at 50% 50%, #000 35%, rgba(0,0,0,0.45) 100%);
+                    mask: radial-gradient(95% 95% at 50% 50%, #000 35%, rgba(0,0,0,0.45) 100%);
+        }
+        /* A · card: lighter glass, gradient border, inset violet glow (an outer
+           glow would be clipped by the 8px viewport margin) */
+        @S .block-container::before {
+            border: 1px solid transparent;
+            background:
+                linear-gradient(180deg, #221A38 0%, #1C1531 100%) padding-box,
+                linear-gradient(135deg, rgba(196,181,253,0.85) 0%, rgba(124,58,237,0.55) 38%,
+                                        rgba(91,108,255,0.45) 68%, rgba(167,139,250,0.80) 100%) border-box;
+            background-origin: border-box;
+            box-shadow:
+                inset 0 0 46px rgba(124,58,237,0.26),
+                inset 0 0 0 1px rgba(196,181,253,0.10),
+                0 0 12px rgba(124,58,237,0.38),
+                0 40px 110px rgba(0,0,0,0.6);
+        }
+
+        /* B · signup uses a slightly smaller control height */
+        @S [data-testid="stColumn"]:has(.st-key-switch_to_login) {
+            --sr2-h: clamp(38px, calc(6.2vh - 8px), 52px);
+        }
+        /* B · vh-based rhythm of the form column and the heading */
+        @S [data-testid="stColumn"]:nth-of-type(2) > [data-testid="stVerticalBlock"] { gap: var(--sr2-gap) !important; }
+        @S .sr-formtitle { padding-top: var(--sr2-tp) !important; padding-bottom: var(--sr2-tp) !important; }
+
+        /* B · inputs: the chrome moves to the field root so the reveal button sits inside it */
+        @S [data-testid="stTextInputRootElement"] {
+            height: var(--sr2-h) !important; min-height: var(--sr2-h) !important;
+            box-sizing: border-box !important;
+            background: rgba(11,8,20,0.55) !important;
+            border: 1px solid rgba(167,139,250,0.34) !important;
+            border-radius: 14px !important;
+            overflow: hidden;
+        }
+        @S [data-testid="stTextInputRootElement"]:focus-within {
+            border-color: var(--sr2-ring) !important;
+            outline: 2px solid var(--sr2-ring); outline-offset: 2px;
+        }
+        @S [data-baseweb="base-input"] {
+            position: relative; height: 100% !important; min-height: 0 !important;
+            background: transparent !important;
+        }
+        @S [data-baseweb="base-input"] input,
+        @S [data-baseweb="base-input"] input:focus {
+            height: 100% !important; box-sizing: border-box !important;
+            padding-top: 0 !important; padding-bottom: 0 !important;
+            background: transparent !important; border: none !important;
+            border-radius: 0 !important; box-shadow: none !important; outline: none !important;
+        }
+        @S [data-baseweb="base-input"] input::placeholder { color: #9D95B2 !important; opacity: 1; }
+        @S [data-testid="stWidgetLabel"] p, @S [data-testid="stWidgetLabel"] label { color: #B4ADC6 !important; }
+        @S [data-testid="stTextInputRootElement"] button { background: transparent !important; color: #B7AFCB !important; border: none !important; }
+        @S [data-testid="stTextInputRootElement"] button:focus-visible { outline: 2px solid var(--sr2-ring) !important; outline-offset: -3px !important; }
+
+        /* B · envelope (email) and lock (password, survives the reveal toggle:
+           matched on autocomplete, not on type) */
+        @S [data-baseweb="base-input"]:has(input[autocomplete="email"])::before,
+        @S [data-baseweb="base-input"]:has(input[autocomplete$="password"])::before {
+            content: ""; position: absolute; left: 16px; top: 50%;
+            width: 18px; height: 18px; transform: translateY(-50%);
+            background: #B7AFCB; pointer-events: none; z-index: 2;
+        }
+        @S [data-baseweb="base-input"]:has(input[autocomplete="email"])::before {
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Cpath d='M3 7l9 6 9-6'/%3E%3C/svg%3E") center / contain no-repeat;
+                    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Cpath d='M3 7l9 6 9-6'/%3E%3C/svg%3E") center / contain no-repeat;
+        }
+        @S [data-baseweb="base-input"]:has(input[autocomplete$="password"])::before {
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat;
+                    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat;
+        }
+        @S [data-baseweb="base-input"]:has(input[autocomplete="email"]) input,
+        @S [data-baseweb="base-input"]:has(input[autocomplete$="password"]) input { padding-left: 46px !important; }
+
+        /* B · buttons share the control height */
+        @S .st-key-google_btn button,
+        @S [data-testid="stFormSubmitButton"] button {
+            height: var(--sr2-h) !important; min-height: var(--sr2-h) !important;
+            padding-top: 0 !important; padding-bottom: 0 !important;
+            border-radius: 14px !important;
+        }
+        /* Google: taller, larger G */
+        @S .st-key-google_btn button {
+            background: rgba(255,255,255,0.045) !important;
+            border: 1px solid rgba(167,139,250,0.34) !important;
+            gap: 12px !important;
+        }
+        @S .st-key-google_btn button::before { width: 22px; height: 22px; }
+
+        /* Sign in: full width (its element container shrink-wraps by default),
+           gradient, arrow on the label's <p> (the button's ::before is the beam) */
+        @S [data-testid="stForm"] [data-testid="stElementContainer"]:has([data-testid="stFormSubmitButton"]),
+        @S [data-testid="stForm"] [data-testid="stElementContainer"]:has([data-testid="stFormSubmitButton"]) > div { width: 100% !important; }
+        @S [data-testid="stFormSubmitButton"] button {
+            background: linear-gradient(100deg, #7C3AED 0%, #6D28D9 55%, #5B3FD6 100%) !important;
+        }
+        @S [data-testid="stFormSubmitButton"] button p::after,
+        @S .st-key-switch_to_signup button p::after,
+        @S .st-key-switch_to_login button p::after {
+            content: ""; display: inline-block; width: 16px; height: 16px;
+            margin-left: 8px; vertical-align: -3px; background: currentColor;
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+                    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+        }
+
+        /* Sign up / Sign in link: violet, centred, with an arrow */
+        @S .st-key-switch_to_signup, @S .st-key-switch_to_login { width: 100% !important; }
+        @S .st-key-switch_to_signup button, @S .st-key-switch_to_login button {
+            color: #B9A6FC !important; font-weight: 600 !important;
+        }
+        @S .st-key-switch_to_signup button:hover, @S .st-key-switch_to_login button:hover { color: #DDD6FE !important; }
+
+        /* Divider text ("OR", "NEW HERE"): letter-spaced and readable */
+        @S .login-divider span { letter-spacing: 0.22em !important; color: #A39CB5 !important; }
+        @S .sr-legal { color: #B4ADC6 !important; }
+        @S .sr-legal a { color: #C4B5FD !important; }
+        @S .sr-hint { color: #A39CB5 !important; }
+
+        /* Focus ring >= 3:1 on every button (2px outline, offset onto the panel) */
+        @S [data-testid="stFormSubmitButton"] button:focus-visible,
+        @S .st-key-google_btn button:focus-visible,
+        @S .st-key-switch_to_signup button:focus-visible,
+        @S .st-key-switch_to_login button:focus-visible,
+        @S .st-key-theme_toggle_btn button:focus-visible {
+            outline: 2px solid var(--sr2-ring) !important; outline-offset: 3px !important;
+        }
+""".replace('@S', '.stApp:has(.sr-scene.sr-v2)')
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Styles
@@ -47,6 +214,8 @@ def _inject_login_styles(mode='light'):
     # reads landscape (wide + short) like option_a_split_showcase.html.
     form_pad = ('clamp(14px, 1.8vh, 26px) clamp(38px, 3.6vw, 52px)' if is_dark
                 else 'clamp(12px, 1.6vh, 22px) clamp(32px, 3.2vw, 46px)')
+    # LOGIN_UI_V2: dark theme only; empty (nothing emitted) otherwise.
+    v2_css = _V2_DARK_CSS if (is_dark and _ui_v2_enabled()) else ''
 
     st.markdown(f"""
     <style>
@@ -633,7 +802,7 @@ def _inject_login_styles(mode='light'):
                 flex: 1 1 0% !important; height: auto !important;
             }}
             .stApp:has(.sr-scene) .sr-scene {{ justify-content: flex-start; }}
-        }}
+        }}{v2_css}
     </style>
     """, unsafe_allow_html=True)
 
@@ -691,8 +860,10 @@ def _inject_entrance_styles(play=True):
 
 def _scene_html():
     """The always-dark left showcase — one single markdown block."""
+    # Class is constant for the process (not theme-dependent) so the hero never remounts.
+    scene_open = '<div class="sr-scene sr-v2">' if _ui_v2_enabled() else '<div class="sr-scene">'
     return (
-        '<div class="sr-scene">'
+        scene_open +
         '<div class="sr-top">'
         '<span class="sr-eyebrow">YouTube Analytics</span>'
         '<span class="sr-live"><span class="sr-live-dot"></span>LIVE · CHANNEL PULSE</span>'
