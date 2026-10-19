@@ -82,7 +82,12 @@ _V2_RULES_AB = """
         }
         /* B · vh-based rhythm of the form column and the heading */
         @S [data-testid="stColumn"]:nth-of-type(2) > [data-testid="stVerticalBlock"] { gap: var(--sr2-gap) !important; }
-        @S .sr-formtitle { padding-top: var(--sr2-tp) !important; padding-bottom: var(--sr2-tp) !important; }
+        @S .sr-formtitle {
+            padding-top: var(--sr2-tp) !important; padding-bottom: var(--sr2-tp) !important;
+            /* Streamlit's own heading colour (set by the browser/OS scheme, not by the
+               app theme) wins over the base rule; pin it to the app theme. */
+            color: var(--sr2-title) !important;
+        }
 
         /* B · inputs: the chrome moves to the field root so the reveal button sits inside it */
         @S [data-testid="stTextInputRootElement"] {
@@ -615,7 +620,7 @@ _V2_THEME = {
         'card-shadow': ('inset 0 0 46px rgba(124,58,237,0.26), inset 0 0 0 1px rgba(196,181,253,0.10), '
                         '0 0 12px rgba(124,58,237,0.38), 0 40px 110px rgba(0,0,0,0.6)'),
         # B · form side
-        'ring': '#DDD6FE',
+        'ring': '#DDD6FE', 'title': '#F5F2FA',
         'input-bg': 'rgba(11,8,20,0.55)', 'input-border': 'rgba(167,139,250,0.34)',
         'placeholder': '#9D95B2', 'label': '#B4ADC6', 'icon': '#B7AFCB',
         'google-bg': 'rgba(255,255,255,0.045)', 'google-border': 'rgba(167,139,250,0.34)',
@@ -654,7 +659,7 @@ _V2_THEME = {
         'card-shadow': ('inset 0 0 40px rgba(124,58,237,0.08), inset 0 0 0 1px rgba(255,255,255,0.60), '
                         '0 0 12px rgba(124,58,237,0.18), 0 30px 80px rgba(76,29,149,0.14)'),
         # B · form side
-        'ring': '#6D28D9',
+        'ring': '#6D28D9', 'title': '#1A1426',
         'input-bg': '#FFFFFF', 'input-border': '#8C83A6',
         'placeholder': '#6E6785', 'label': '#5F5873', 'icon': '#7A7096',
         'google-bg': '#FFFFFF', 'google-border': '#8C83A6',
