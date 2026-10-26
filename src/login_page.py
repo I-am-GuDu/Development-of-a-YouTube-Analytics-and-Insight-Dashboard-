@@ -15,7 +15,10 @@ Design constraints honoured from the codebase:
   * Sign-in / sign-up run in Streamlit itself (see auth.py): email + password
     against the app's users table, or "Continue with Google" via Neon Auth.
 """
+import os
+from functools import lru_cache
 from html import escape
+from urllib.parse import quote
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -28,6 +31,672 @@ from auth import (
     start_google_sign_in,
 )
 from dashboard import theme as theme_tokens
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LOGIN_UI_V2 switch (default off)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@lru_cache(maxsize=1)
+def _ui_v2_enabled():
+    """True when LOGIN_UI_V2 is 1/true/yes/on. Read once per process (the first
+    render, after main.py has loaded .env), so every rerun and every session
+    sees the same value and the element tree never changes between runs."""
+    return os.getenv('LOGIN_UI_V2', '').strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+# v2 look (phases A-D), both themes. Plain string (real CSS braces); every rule
+# starts with @S, which becomes `.stApp:has(.sr-scene.sr-v2)`, so nothing can
+# reach the dashboard or the off state. One set of rules: every colour, gradient
+# and themed SVG is a `var(--sr2-*)` whose value comes from _V2_THEME (emitted
+# per mode by _v2_css). No external URLs: icons are inline SVG data URIs. The
+# only motion (cube float) is under prefers-reduced-motion: no-preference.
+_V2_RULES_AB = """
+
+        /* ═══════════════ LOGIN_UI_V2 · phases A + B ═══════════════ */
+
+        /* A · page: glow + dot texture behind the card; shared v2 sizes */
+        @S {
+            --sr2-h: clamp(38px, 6.2vh, 56px);
+            --sr2-gap: clamp(6px, 1.85vh, 16px);
+            --sr2-tp: clamp(0px, calc(3vh - 12px), 16px);
+            background: var(--sr2-page-bg) !important;
+        }
+        @S::before {
+            background-image: radial-gradient(circle, var(--sr2-page-dots) 1px, transparent 1.4px);
+            background-size: 22px 22px;
+            -webkit-mask: radial-gradient(95% 95% at 50% 50%, #000 35%, rgba(0,0,0,0.45) 100%);
+                    mask: radial-gradient(95% 95% at 50% 50%, #000 35%, rgba(0,0,0,0.45) 100%);
+        }
+        /* A · card: lighter glass, gradient border, inset violet glow (an outer
+           glow would be clipped by the 8px viewport margin) */
+        @S .block-container::before {
+            border: 1px solid transparent;
+            background: var(--sr2-card-bg);
+            background-origin: border-box;
+            box-shadow: var(--sr2-card-shadow);
+        }
+
+        /* B · signup uses a slightly smaller control height */
+        @S [data-testid="stColumn"]:has(.st-key-switch_to_login) {
+            --sr2-h: clamp(38px, calc(6.2vh - 8px), 52px);
+        }
+        /* B · vh-based rhythm of the form column and the heading */
+        @S [data-testid="stColumn"]:nth-of-type(2) > [data-testid="stVerticalBlock"] { gap: var(--sr2-gap) !important; }
+        @S .sr-formtitle {
+            padding-top: var(--sr2-tp) !important; padding-bottom: var(--sr2-tp) !important;
+            /* Streamlit's own heading colour (set by the browser/OS scheme, not by the
+               app theme) wins over the base rule; pin it to the app theme. */
+            color: var(--sr2-title) !important;
+        }
+
+        /* B · inputs: the chrome moves to the field root so the reveal button sits inside it */
+        @S [data-testid="stTextInputRootElement"] {
+            height: var(--sr2-h) !important; min-height: var(--sr2-h) !important;
+            box-sizing: border-box !important;
+            background: var(--sr2-input-bg) !important;
+            border: 1px solid var(--sr2-input-border) !important;
+            border-radius: 14px !important;
+            overflow: hidden;
+        }
+        @S [data-testid="stTextInputRootElement"]:focus-within {
+            border-color: var(--sr2-ring) !important;
+            outline: 2px solid var(--sr2-ring); outline-offset: 2px;
+        }
+        @S [data-baseweb="base-input"] {
+            position: relative; height: 100% !important; min-height: 0 !important;
+            background: transparent !important;
+        }
+        @S [data-baseweb="base-input"] input,
+        @S [data-baseweb="base-input"] input:focus {
+            height: 100% !important; box-sizing: border-box !important;
+            padding-top: 0 !important; padding-bottom: 0 !important;
+            background: transparent !important; border: none !important;
+            border-radius: 0 !important; box-shadow: none !important; outline: none !important;
+        }
+        @S [data-baseweb="base-input"] input::placeholder { color: var(--sr2-placeholder) !important; opacity: 1; }
+        @S [data-testid="stWidgetLabel"] p, @S [data-testid="stWidgetLabel"] label { color: var(--sr2-label) !important; }
+        @S [data-testid="stTextInputRootElement"] button { background: transparent !important; color: var(--sr2-icon) !important; border: none !important; }
+        @S [data-testid="stTextInputRootElement"] button:focus-visible { outline: 2px solid var(--sr2-ring) !important; outline-offset: -3px !important; }
+
+        /* B · envelope (email) and lock (password, survives the reveal toggle:
+           matched on autocomplete, not on type) */
+        @S [data-baseweb="base-input"]:has(input[autocomplete="email"])::before,
+        @S [data-baseweb="base-input"]:has(input[autocomplete$="password"])::before {
+            content: ""; position: absolute; left: 16px; top: 50%;
+            width: 18px; height: 18px; transform: translateY(-50%);
+            background: var(--sr2-icon); pointer-events: none; z-index: 2;
+        }
+        @S [data-baseweb="base-input"]:has(input[autocomplete="email"])::before {
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Cpath d='M3 7l9 6 9-6'/%3E%3C/svg%3E") center / contain no-repeat;
+                    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Cpath d='M3 7l9 6 9-6'/%3E%3C/svg%3E") center / contain no-repeat;
+        }
+        @S [data-baseweb="base-input"]:has(input[autocomplete$="password"])::before {
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat;
+                    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / contain no-repeat;
+        }
+        @S [data-baseweb="base-input"]:has(input[autocomplete="email"]) input,
+        @S [data-baseweb="base-input"]:has(input[autocomplete$="password"]) input { padding-left: 46px !important; }
+
+        /* B · buttons share the control height */
+        @S .st-key-google_btn button,
+        @S [data-testid="stFormSubmitButton"] button {
+            height: var(--sr2-h) !important; min-height: var(--sr2-h) !important;
+            padding-top: 0 !important; padding-bottom: 0 !important;
+            border-radius: 14px !important;
+        }
+        /* Google: taller, larger G */
+        @S .st-key-google_btn button {
+            background: var(--sr2-google-bg) !important;
+            border: 1px solid var(--sr2-google-border) !important;
+            gap: 12px !important;
+        }
+        @S .st-key-google_btn button::before { width: 22px; height: 22px; }
+
+        /* Sign in: full width (its element container shrink-wraps by default),
+           gradient, arrow on the label's <p> (the button's ::before is the beam) */
+        @S [data-testid="stForm"] [data-testid="stElementContainer"]:has([data-testid="stFormSubmitButton"]),
+        @S [data-testid="stForm"] [data-testid="stElementContainer"]:has([data-testid="stFormSubmitButton"]) > div { width: 100% !important; }
+        @S [data-testid="stFormSubmitButton"] button {
+            background: linear-gradient(100deg, #7C3AED 0%, #6D28D9 55%, #5B3FD6 100%) !important;
+        }
+        @S [data-testid="stFormSubmitButton"] button p::after,
+        @S .st-key-switch_to_signup button p::after,
+        @S .st-key-switch_to_login button p::after {
+            content: ""; display: inline-block; width: 16px; height: 16px;
+            margin-left: 8px; vertical-align: -3px; background: currentColor;
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+                    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+        }
+
+        /* Sign up / Sign in link: violet, centred, with an arrow */
+        @S .st-key-switch_to_signup, @S .st-key-switch_to_login { width: 100% !important; }
+        @S .st-key-switch_to_signup button, @S .st-key-switch_to_login button {
+            color: var(--sr2-link) !important; font-weight: 600 !important;
+        }
+        @S .st-key-switch_to_signup button:hover, @S .st-key-switch_to_login button:hover { color: var(--sr2-link-hover) !important; }
+
+        /* Divider text ("OR", "NEW HERE"): letter-spaced and readable */
+        @S .login-divider span { letter-spacing: 0.22em !important; color: var(--sr2-divider) !important; }
+        @S .sr-legal { color: var(--sr2-legal) !important; }
+        @S .sr-legal a { color: var(--sr2-legal-link) !important; }
+        @S .sr-hint { color: var(--sr2-hint) !important; }
+
+        /* Focus ring >= 3:1 on every button (2px outline, offset onto the panel) */
+        @S [data-testid="stFormSubmitButton"] button:focus-visible,
+        @S .st-key-google_btn button:focus-visible,
+        @S .st-key-switch_to_signup button:focus-visible,
+        @S .st-key-switch_to_login button:focus-visible,
+        @S .st-key-theme_toggle_btn button:focus-visible {
+            outline: 2px solid var(--sr2-ring) !important; outline-offset: 3px !important;
+        }
+"""
+
+
+# ── Phase C (hero) ──────────────────────────────────────────────────────────
+# Static markup, emitted only when the switch is on (see _scene_html). The new
+# pieces carry `hidden` (the v2 CSS shows them), so if the CSS ever fails to
+# load they take no space; the bare .sr2-card wrapper is then a plain block of
+# the same height as the chart it wraps. No ids: nothing can collide with sr-* ids.
+_V2_CHART_CARD_OPEN = (
+    '<div class="sr2-card">'
+    '<div class="sr2-cardhead" hidden>'
+    '<span class="sr2-cardtitle">Audience retention</span>'
+    '<svg class="sr2-info" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">'
+    '<circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.8"/>'
+    '<path d="M12 11v5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+    '<circle cx="12" cy="7.6" r="1.2" fill="currentColor"/>'
+    '</svg>'
+    '<span class="sr2-chip">Last 30 days</span>'
+    '</div>'
+    '<div class="sr2-y" hidden aria-hidden="true"><span>100%</span><span>50%</span><span>0%</span></div>'
+    '<div class="sr2-grid" hidden aria-hidden="true"><i></i><i></i><i></i></div>'
+)
+# Inline style: the flex gap of the caption is cancelled down to a space; the v2
+# CSS makes it bold (normal weight if that CSS is missing).
+_V2_BEST_WINDOW = '<b style="font-weight:inherit;margin-left:calc(0.25em - 8px)">Friday, 6 PM.</b>'
+
+
+def _svg_url(svg):
+    """CSS url() for an inline SVG (data URI, fully percent-encoded)."""
+    return 'url("data:image/svg+xml,' + quote(svg, safe='') + '")'
+
+
+def _spark_svg(points, fill='#8B5CF6', fill_opacity='.38', stroke='#A78BFA'):
+    return (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 16'>"
+        "<defs><linearGradient id='sr2-sf' x1='0' y1='0' x2='0' y2='1'>"
+        f"<stop offset='0' stop-color='{fill}' stop-opacity='{fill_opacity}'/>"
+        f"<stop offset='1' stop-color='{fill}' stop-opacity='0'/></linearGradient></defs>"
+        f"<path d='M{points} L39 16 L1 16 Z' fill='url(#sr2-sf)'/>"
+        f"<path d='M{points}' fill='none' stroke='{stroke}' stroke-width='1.6'"
+        " stroke-linecap='round' stroke-linejoin='round'/></svg>"
+    )
+
+
+def _icon_svg(body, width='2', stroke='#DDD6FE'):
+    return (
+        f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='{stroke}'"
+        f" stroke-width='{width}' stroke-linecap='round' stroke-linejoin='round'>{body}</svg>"
+    )
+
+
+_ICON_EYE = "<path d='M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z'/><circle cx='12' cy='12' r='3'/>"
+_ICON_PEOPLE = ("<path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/>"
+                "<path d='M22 21v-2a4 4 0 0 0-3-3.87'/><path d='M16 3.13a4 4 0 0 1 0 7.75'/>")
+_ICON_BARS = "<path d='M6 20v-7M12 20V5M18 20V10'/>"
+_SPARK_PTS = ('1 12 L6 10 L10 11 L15 6 L19 8 L24 5 L28 7 L33 3 L39 4',
+              '1 11 L5 12 L9 9 L14 10 L18 6 L23 8 L27 5 L32 7 L39 3',
+              '1 13 L6 12 L10 13 L14 9 L19 10 L24 7 L28 8 L33 4 L39 2')
+
+
+_V2_SVG = {
+    '@WAVES': (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 300' preserveAspectRatio='none'>"
+        "<defs>"
+        "<linearGradient id='sr2-wa' x1='0' y1='0' x2='1' y2='0'>"
+        "<stop offset='0' stop-color='#5B21B6' stop-opacity='.06'/>"
+        "<stop offset='.6' stop-color='#7C3AED' stop-opacity='.30'/>"
+        "<stop offset='1' stop-color='#6366F1' stop-opacity='.22'/></linearGradient>"
+        "<linearGradient id='sr2-wb' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#4C1D95' stop-opacity='.34'/>"
+        "<stop offset='1' stop-color='#1E1036' stop-opacity='.08'/></linearGradient>"
+        "</defs>"
+        "<path d='M0 170 C150 120 260 210 420 180 C560 154 660 100 800 118 L800 300 L0 300 Z' fill='url(#sr2-wa)'/>"
+        "<path d='M0 230 C170 196 300 262 470 232 C610 208 700 176 800 186 L800 300 L0 300 Z' fill='url(#sr2-wb)'/>"
+        "<path d='M0 170 C150 120 260 210 420 180 C560 154 660 100 800 118' fill='none' stroke='#A78BFA'"
+        " stroke-opacity='.32' stroke-width='1.2' vector-effect='non-scaling-stroke'/>"
+        "<path d='M0 230 C170 196 300 262 470 232 C610 208 700 176 800 186' fill='none' stroke='#C4B5FD'"
+        " stroke-opacity='.16' stroke-width='1' vector-effect='non-scaling-stroke'/>"
+        "</svg>"
+    ),
+    '@CUBE': (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 230'>"
+        "<defs>"
+        "<filter id='sr2-cb' x='-60%' y='-60%' width='220%' height='220%'><feGaussianBlur stdDeviation='14'/></filter>"
+        "<filter id='sr2-cs' x='-60%' y='-60%' width='220%' height='220%'><feGaussianBlur stdDeviation='7'/></filter>"
+        "<filter id='sr2-cg' x='-60%' y='-60%' width='220%' height='220%'><feGaussianBlur stdDeviation='5'/></filter>"
+        "<linearGradient id='sr2-cf' x1='0' y1='0' x2='1' y2='1'>"
+        "<stop offset='0' stop-color='#C4B5FD' stop-opacity='.42'/>"
+        "<stop offset='.5' stop-color='#7C3AED' stop-opacity='.20'/>"
+        "<stop offset='1' stop-color='#4C1D95' stop-opacity='.40'/></linearGradient>"
+        "<linearGradient id='sr2-ct' x1='0' y1='1' x2='1' y2='0'>"
+        "<stop offset='0' stop-color='#EDE9FE' stop-opacity='.40'/>"
+        "<stop offset='1' stop-color='#A78BFA' stop-opacity='.18'/></linearGradient>"
+        "<linearGradient id='sr2-cr' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#7C3AED' stop-opacity='.55'/>"
+        "<stop offset='1' stop-color='#2E1065' stop-opacity='.65'/></linearGradient>"
+        "<linearGradient id='sr2-cp' x1='0' y1='0' x2='1' y2='1'>"
+        "<stop offset='0' stop-color='#F5F3FF'/><stop offset='.45' stop-color='#C4B5FD'/>"
+        "<stop offset='1' stop-color='#7C3AED'/></linearGradient>"
+        "<linearGradient id='sr2-ch' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#FFFFFF' stop-opacity='.50'/>"
+        "<stop offset='1' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient>"
+        "</defs>"
+        "<circle cx='118' cy='120' r='58' fill='#7C3AED' opacity='.30' filter='url(#sr2-cb)'/>"
+        "<ellipse cx='112' cy='202' rx='72' ry='7' fill='#8B5CF6' opacity='.55' filter='url(#sr2-cs)'/>"
+        "<path d='M180 64 L206 42 L206 164 L180 190 Z' fill='url(#sr2-cr)' stroke='#C4B5FD'"
+        " stroke-opacity='.35' stroke-width='1.2' stroke-linejoin='round'/>"
+        "<path d='M40 63 L66 41 L204 41 L178 63 Z' fill='url(#sr2-ct)' stroke='#EDE9FE'"
+        " stroke-opacity='.45' stroke-width='1.2' stroke-linejoin='round'/>"
+        "<rect x='30' y='62' width='150' height='136' rx='24' fill='url(#sr2-cf)' stroke='#DDD6FE'"
+        " stroke-opacity='.60' stroke-width='1.5'/>"
+        "<path d='M54 70 H156 Q170 70 172 84 Q118 96 38 116 V86 Q38 70 54 70 Z' fill='url(#sr2-ch)' opacity='.40'/>"
+        "<path d='M92 106 L92 156 L138 131 Z' fill='#A78BFA' opacity='.85' filter='url(#sr2-cg)'/>"
+        "<path d='M92 106 L92 156 L138 131 Z' fill='url(#sr2-cp)' stroke='url(#sr2-cp)'"
+        " stroke-width='8' stroke-linejoin='round'/>"
+        "</svg>"
+    ),
+    '@ICONEYE': _icon_svg(_ICON_EYE),
+    '@ICONPEOPLE': _icon_svg(_ICON_PEOPLE),
+    '@ICONBARS': _icon_svg(_ICON_BARS, width='2.4'),
+    '@KPILINE1': _spark_svg(_SPARK_PTS[0]),
+    '@KPILINE2': _spark_svg(_SPARK_PTS[1]),
+    '@KPILINE3': _spark_svg(_SPARK_PTS[2]),
+    '@CLOCK': (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+        "<circle cx='12' cy='12' r='11' fill='#EAB308'/>"
+        "<circle cx='12' cy='12' r='8.2' fill='none' stroke='#FDE68A' stroke-opacity='.55' stroke-width='1'/>"
+        "<path d='M12 6.8V12l3.4 2.1' fill='none' stroke='#1C1404' stroke-width='2.2'"
+        " stroke-linecap='round' stroke-linejoin='round'/></svg>"
+    ),
+}
+
+# Light-theme versions of the same SVGs, tuned for white/lavender backgrounds.
+_V2_SVG_LIGHT = {
+    '@WAVES': (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 300' preserveAspectRatio='none'>"
+        "<defs>"
+        "<linearGradient id='sr2-wa' x1='0' y1='0' x2='1' y2='0'>"
+        "<stop offset='0' stop-color='#C4B5FD' stop-opacity='.10'/>"
+        "<stop offset='.6' stop-color='#A78BFA' stop-opacity='.30'/>"
+        "<stop offset='1' stop-color='#818CF8' stop-opacity='.24'/></linearGradient>"
+        "<linearGradient id='sr2-wb' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#C4B5FD' stop-opacity='.42'/>"
+        "<stop offset='1' stop-color='#EDE9FE' stop-opacity='.30'/></linearGradient>"
+        "</defs>"
+        "<path d='M0 170 C150 120 260 210 420 180 C560 154 660 100 800 118 L800 300 L0 300 Z' fill='url(#sr2-wa)'/>"
+        "<path d='M0 230 C170 196 300 262 470 232 C610 208 700 176 800 186 L800 300 L0 300 Z' fill='url(#sr2-wb)'/>"
+        "<path d='M0 170 C150 120 260 210 420 180 C560 154 660 100 800 118' fill='none' stroke='#8B5CF6'"
+        " stroke-opacity='.35' stroke-width='1.2' vector-effect='non-scaling-stroke'/>"
+        "<path d='M0 230 C170 196 300 262 470 232 C610 208 700 176 800 186' fill='none' stroke='#A78BFA'"
+        " stroke-opacity='.25' stroke-width='1' vector-effect='non-scaling-stroke'/>"
+        "</svg>"
+    ),
+    '@CUBE': (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 230'>"
+        "<defs>"
+        "<filter id='sr2-cb' x='-60%' y='-60%' width='220%' height='220%'><feGaussianBlur stdDeviation='14'/></filter>"
+        "<filter id='sr2-cs' x='-60%' y='-60%' width='220%' height='220%'><feGaussianBlur stdDeviation='7'/></filter>"
+        "<filter id='sr2-cg' x='-60%' y='-60%' width='220%' height='220%'><feGaussianBlur stdDeviation='5'/></filter>"
+        "<linearGradient id='sr2-cf' x1='0' y1='0' x2='1' y2='1'>"
+        "<stop offset='0' stop-color='#FFFFFF' stop-opacity='.92'/>"
+        "<stop offset='.5' stop-color='#F3EEFF' stop-opacity='.80'/>"
+        "<stop offset='1' stop-color='#DDD6FE' stop-opacity='.85'/></linearGradient>"
+        "<linearGradient id='sr2-ct' x1='0' y1='1' x2='1' y2='0'>"
+        "<stop offset='0' stop-color='#FFFFFF' stop-opacity='.95'/>"
+        "<stop offset='1' stop-color='#EDE9FE' stop-opacity='.85'/></linearGradient>"
+        "<linearGradient id='sr2-cr' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#DDD6FE' stop-opacity='.95'/>"
+        "<stop offset='1' stop-color='#C4B5FD' stop-opacity='.90'/></linearGradient>"
+        "<linearGradient id='sr2-cp' x1='0' y1='0' x2='1' y2='1'>"
+        "<stop offset='0' stop-color='#A78BFA'/><stop offset='.5' stop-color='#7C3AED'/>"
+        "<stop offset='1' stop-color='#5B21B6'/></linearGradient>"
+        "<linearGradient id='sr2-ch' x1='0' y1='0' x2='0' y2='1'>"
+        "<stop offset='0' stop-color='#FFFFFF' stop-opacity='.85'/>"
+        "<stop offset='1' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient>"
+        "</defs>"
+        "<circle cx='118' cy='120' r='58' fill='#A78BFA' opacity='.22' filter='url(#sr2-cb)'/>"
+        "<ellipse cx='112' cy='202' rx='72' ry='7' fill='#7C3AED' opacity='.30' filter='url(#sr2-cs)'/>"
+        "<path d='M180 64 L206 42 L206 164 L180 190 Z' fill='url(#sr2-cr)' stroke='#A78BFA'"
+        " stroke-opacity='.55' stroke-width='1.2' stroke-linejoin='round'/>"
+        "<path d='M40 63 L66 41 L204 41 L178 63 Z' fill='url(#sr2-ct)' stroke='#C4B5FD'"
+        " stroke-opacity='.70' stroke-width='1.2' stroke-linejoin='round'/>"
+        "<rect x='30' y='62' width='150' height='136' rx='24' fill='url(#sr2-cf)' stroke='#A78BFA'"
+        " stroke-opacity='.65' stroke-width='1.5'/>"
+        "<path d='M54 70 H156 Q170 70 172 84 Q118 96 38 116 V86 Q38 70 54 70 Z' fill='url(#sr2-ch)' opacity='.70'/>"
+        "<path d='M92 106 L92 156 L138 131 Z' fill='#8B5CF6' opacity='.45' filter='url(#sr2-cg)'/>"
+        "<path d='M92 106 L92 156 L138 131 Z' fill='url(#sr2-cp)' stroke='url(#sr2-cp)'"
+        " stroke-width='8' stroke-linejoin='round'/>"
+        "</svg>"
+    ),
+    '@ICONEYE': _icon_svg(_ICON_EYE, stroke='#6D28D9'),
+    '@ICONPEOPLE': _icon_svg(_ICON_PEOPLE, stroke='#6D28D9'),
+    '@ICONBARS': _icon_svg(_ICON_BARS, width='2.4', stroke='#6D28D9'),
+    '@KPILINE1': _spark_svg(_SPARK_PTS[0], fill_opacity='.22', stroke='#7C3AED'),
+    '@KPILINE2': _spark_svg(_SPARK_PTS[1], fill_opacity='.22', stroke='#7C3AED'),
+    '@KPILINE3': _spark_svg(_SPARK_PTS[2], fill_opacity='.22', stroke='#7C3AED'),
+    '@CLOCK': (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+        "<circle cx='12' cy='12' r='11' fill='#EAB308' stroke='#A16207' stroke-opacity='.55' stroke-width='1'/>"
+        "<circle cx='12' cy='12' r='8.2' fill='none' stroke='#FEF3C7' stroke-opacity='.65' stroke-width='1'/>"
+        "<path d='M12 6.8V12l3.4 2.1' fill='none' stroke='#1C1404' stroke-width='2.2'"
+        " stroke-linecap='round' stroke-linejoin='round'/></svg>"
+    ),
+}
+
+_V2_HERO_CSS = """
+
+        /* ═══════════════ LOGIN_UI_V2 · phase C (hero) ═══════════════ */
+        @S {
+            --sr2-cpt: clamp(3px, 0.5vh, 8px);     /* card padding top/bottom (.block-container) */
+            --sr2-cpl: clamp(10px, 1.4vw, 18px);   /* card padding left/right */
+        }
+
+        /* C1 · background: glow top right, waves at the bottom, dot texture. The
+           ::before sits behind every child (isolation + z-index:-1). */
+        @S .sr-scene.sr-v2 {
+            isolation: isolate;
+            --sr2-chart-h: clamp(88px, 13vh, 128px);   /* same as the base .sr-chart height */
+            background: var(--sr2-hero-bg);
+            color: var(--sr2-hero-fg);
+        }
+        @S .sr-scene.sr-v2::before {
+            content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+            background:
+                radial-gradient(48% 40% at 94% 4%, var(--sr2-glow-a), transparent 72%),
+                radial-gradient(36% 30% at 72% 30%, var(--sr2-glow-b), transparent 75%),
+                var(--sr2-waves) bottom / 100% clamp(150px, 34%, 260px) no-repeat,
+                radial-gradient(circle, var(--sr2-hero-dots) 1px, transparent 1.5px) 0 0 / 18px 18px;
+        }
+        /* C1b · hero text and surfaces. In dark these values equal the base
+           (always-dark) hero, so dark looks the same; light gets its own palette. */
+        @S .sr-scene.sr-v2 .sr-eyebrow { color: var(--sr2-eyebrow); }
+        @S .sr-scene.sr-v2 .sr-live {
+            color: var(--sr2-live-fg); background: var(--sr2-live-bg); border-color: var(--sr2-live-border);
+        }
+        @S .sr-scene.sr-v2 .sr-h1 { color: var(--sr2-hero-fg); }
+        @S .sr-scene.sr-v2 .sr-grad { background-image: var(--sr2-grad); }
+        @S .sr-scene.sr-v2 .sr-sub { color: var(--sr2-hero-sub); }
+        @S .sr-scene.sr-v2 .sr-playhead { background: var(--sr2-playhead); }
+        @S .sr-scene.sr-v2 .sr-times { color: var(--sr2-hero-faint); }
+        @S .sr-scene.sr-v2 .sr-kpi {
+            background: var(--sr2-kpi-bg); border-color: var(--sr2-kpi-border); box-shadow: var(--sr2-kpi-shadow);
+        }
+        @S .sr-scene.sr-v2 .sr-kpi-val { color: var(--sr2-hero-fg); }
+        @S .sr-scene.sr-v2 .sr-kpi-val .up { color: var(--sr2-kpi-up); }
+        @S .sr-scene.sr-v2 .sr-kpi-label { color: var(--sr2-hero-faint); }
+        @S .sr-scene.sr-v2 .sr-captions span { color: var(--sr2-hero-sub); }
+        /* Edge to edge: the hero grows over the card padding (left, top, bottom, 1px
+           short so the card border stays visible) and adds the same amount to its own
+           padding, so its content box does not move or change size. */
+        @media (min-width: 901px) {
+            @S [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"]:nth-of-type(1) {
+                overflow: visible !important;
+            }
+            @S .sr-scene.sr-v2 {
+                margin: calc(1px - var(--sr2-cpt)) 0 0 calc(1px - var(--sr2-cpl));
+                height: calc(100% + 2 * var(--sr2-cpt) - 2px);
+                padding-top: calc(clamp(10px, 1.3vh, 20px) + var(--sr2-cpt) - 1px);
+                padding-bottom: calc(clamp(10px, 1.3vh, 20px) + var(--sr2-cpt) - 1px);
+                padding-left: calc(clamp(30px, 3.4vw, 48px) + var(--sr2-cpl) - 1px);
+                border-radius: 25px 0 0 25px;
+            }
+        }
+
+        /* C2 · glass play-button cube: a flex item with zero net height (margin-top =
+           -height), moved by `order` between the subtitle and the chart card and
+           right-aligned. Hidden when the hero is too narrow for it. */
+        @S .sr-scene.sr-v2 > :nth-child(n+4) { order: 2; }
+        @S .sr-scene.sr-v2::after {
+            content: ""; order: 1; flex: none; align-self: flex-end;
+            width: 124px; height: 112px; margin: -112px 0 0;
+            background: var(--sr2-cube) center / contain no-repeat;
+            pointer-events: none;
+        }
+        @media (max-width: 1239px) {
+            @S .sr-scene.sr-v2::after { display: none; }
+        }
+        @media (prefers-reduced-motion: no-preference) {
+            @S .sr-scene.sr-v2::after { animation: sr2-float 6s ease-in-out infinite; }
+        }
+        @keyframes sr2-float {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-6px); }
+        }
+
+        /* C3 · chart card around .sr-chartwrap. The wrap itself is not padded or
+           moved inside, so the playhead maths (relative to the svg) is unchanged. */
+        @S .sr2-card {
+            position: relative;
+            padding: 10px 14px 6px 44px;
+            border: 1px solid var(--sr2-chartcard-border); border-radius: 16px;
+            background: var(--sr2-chartcard-bg);
+            box-shadow: var(--sr2-chartcard-shadow);
+        }
+        @S .sr2-cardhead {
+            display: flex !important; align-items: center; gap: 7px;
+            height: 22px; margin: 0 0 6px -30px;
+            color: var(--sr2-chart-muted);
+        }
+        @S .sr2-cardtitle { font-size: 13px; font-weight: 600; color: var(--sr2-chart-title); }
+        @S .sr2-info { flex: none; }
+        @S .sr2-chip {
+            margin-left: auto; padding: 2px 10px; border-radius: 999px; white-space: nowrap;
+            font-size: 11px; font-weight: 500; color: var(--sr2-chip-fg);
+            background: var(--sr2-chip-bg); border: 1px solid var(--sr2-chip-border);
+        }
+        /* Labels and grid cover the svg box: top = card padding 10 + head 22 + 6. */
+        @S .sr2-y, @S .sr2-grid {
+            display: block !important; position: absolute; top: 38px;
+            height: var(--sr2-chart-h); pointer-events: none;
+        }
+        @S .sr2-y {
+            left: 8px; width: 30px;
+            font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--sr2-chart-muted);
+        }
+        @S .sr2-y span { position: absolute; right: 0; transform: translateY(-50%); line-height: 1; }
+        /* JS: pct = (210 - y) / 190 -> 100% at y=20, 50% at y=115, 0% at y=210 (of 210) */
+        @S .sr2-y span:nth-child(1), @S .sr2-grid i:nth-child(1) { top: 9.524%; }
+        @S .sr2-y span:nth-child(2), @S .sr2-grid i:nth-child(2) { top: 54.762%; }
+        @S .sr2-y span:nth-child(3) { top: 100%; }
+        @S .sr2-grid {
+            left: 44px; right: 14px;
+            background: repeating-linear-gradient(to right, var(--sr2-grid-v) 0 1px, transparent 1px calc(100% / 6));
+        }
+        @S .sr2-grid i { position: absolute; left: 0; right: 0; height: 1px; background: var(--sr2-grid-h); }
+        @S .sr2-grid i:nth-child(3) { top: calc(100% - 1px); }
+        @S .sr-scene.sr-v2 .sr-chart { height: var(--sr2-chart-h); }
+        @S .sr-scene.sr-v2 .sr-chart > g { display: none; }   /* old grid; the card grid replaces it */
+
+        /* C4 · no red progress bar: hidden, still in the DOM for the JS */
+        @S .sr-scene.sr-v2 .sr-track { display: none; }
+
+        /* C5 · KPI cards: icon in a circle (::before) and a sparkline (::after). The
+           grid keeps the two text rows, so the card height does not change. Plain
+           cards below 1350px, where the three would not fit side by side. */
+        @media (min-width: 1350px) {
+            @S .sr-scene.sr-v2 .sr-kpi {
+                display: grid; grid-template-columns: 28px minmax(0, 1fr) 34px;
+                column-gap: 8px; align-items: center;
+                padding-left: 12px; padding-right: 12px;
+            }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(-n+2) { grid-template-areas: "icon val spark" "icon lab lab"; }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(3) { grid-template-areas: "icon val val" "icon lab spark"; }
+            @S .sr-scene.sr-v2 .sr-kpi-val { grid-area: val; white-space: nowrap; }
+            @S .sr-scene.sr-v2 .sr-kpi-label { grid-area: lab; white-space: nowrap; }
+            @S .sr-scene.sr-v2 .sr-kpi::before {
+                content: ""; grid-area: icon; width: 28px; height: 28px; border-radius: 50%;
+                box-sizing: border-box; border: 1px solid var(--sr2-kpi-icon-border);
+                background: var(--sr2-kpi-icon-bg) center / 15px 15px no-repeat;
+            }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(1)::before { background-image: var(--sr2-icon-eye); }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(2)::before { background-image: var(--sr2-icon-people); }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(3)::before { background-image: var(--sr2-icon-bars); }
+            @S .sr-scene.sr-v2 .sr-kpi::after {
+                content: ""; grid-area: spark; justify-self: end; width: 34px; height: 14px;
+                background: center / contain no-repeat;
+            }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(1)::after { background-image: var(--sr2-spark-1); }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(2)::after { background-image: var(--sr2-spark-2); }
+            @S .sr-scene.sr-v2 .sr-kpi:nth-child(3)::after { background-image: var(--sr2-spark-3); }
+        }
+
+        /* C6 · tip line: yellow clock instead of the bullet; bold best window */
+        @S .sr-scene.sr-v2 .sr-captions span::before {
+            content: ""; flex: none; width: 16px; height: 16px;
+            background: var(--sr2-clock) center / contain no-repeat;
+        }
+        @S .sr-scene.sr-v2 .sr-captions b { font-weight: 700 !important; color: var(--sr2-tip-strong); }
+
+        /* C7 · no heading anchor-link icon on hover */
+        @S .sr-scene.sr-v2 [data-testid="stHeaderActionElements"] { display: none !important; }
+
+        /* D1 · stacked layout (900px and below). The base page crops the hero to a
+           fixed-height banner, which cut the chart card, the subtitle or the
+           headline mid-line. In v2 the banner takes its content height instead and
+           the decorative parts are hidden rather than cropped. */
+        @media (max-width: 900px) {
+            @S [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"]:nth-of-type(1) {
+                height: auto !important;
+            }
+            @S .sr-scene.sr-v2 .sr2-card, @S .sr-scene.sr-v2 .sr-kpis { display: none; }
+            /* keep the LIVE chip clear of the theme toggle in the card corner */
+            @S .sr-scene.sr-v2 .sr-top { padding-right: 28px; }
+            /* low waves under the text instead of through it */
+            @S .sr-scene.sr-v2::before { background-size: auto, auto, 100% 64px, 18px 18px; }
+        }
+        /* Phones: headline only in the banner, so Google and Sign in stay on screen
+           (390x844, error shown). Hidden, not shrunk. */
+        @media (max-width: 600px) {
+            @S .sr-scene.sr-v2 .sr-sub, @S .sr-scene.sr-v2 .sr-live, @S .sr-logo { display: none; }
+            @S .sr-scene.sr-v2 .sr-top { padding-right: 0; }
+            @S .sr-scene.sr-v2 .sr-h1 { padding-top: 0 !important; padding-bottom: 0 !important; }
+        }
+        /* Short phones: no hero banner at all, so the whole form (Sign in and the
+           Terms line included) fits the card. Hidden with CSS only; every hero
+           element stays in the DOM for the chart script. */
+        @media (max-width: 600px) and (max-height: 700px) {
+            @S [data-testid="stHorizontalBlock"]:has(.sr-scene) > [data-testid="stColumn"]:nth-of-type(1) {
+                display: none !important;
+            }
+        }
+"""
+_V2_SCOPE = '.stApp:has(.sr-scene.sr-v2)'
+_V2_RULES = (_V2_RULES_AB + _V2_HERO_CSS).replace('@S', _V2_SCOPE)
+
+
+def _v2_svg_vars(svgs):
+    return {
+        'waves': _svg_url(svgs['@WAVES']), 'cube': _svg_url(svgs['@CUBE']),
+        'icon-eye': _svg_url(svgs['@ICONEYE']), 'icon-people': _svg_url(svgs['@ICONPEOPLE']),
+        'icon-bars': _svg_url(svgs['@ICONBARS']),
+        'spark-1': _svg_url(svgs['@KPILINE1']), 'spark-2': _svg_url(svgs['@KPILINE2']),
+        'spark-3': _svg_url(svgs['@KPILINE3']), 'clock': _svg_url(svgs['@CLOCK']),
+    }
+
+
+# Theme values for the v2 rules (the v2 counterpart of dashboard.theme tokens).
+# Dark = the values the dark v2 used before the light theme existed.
+_V2_THEME = {
+    'dark': {
+        # A · page + card
+        'page-bg': ('radial-gradient(54% 48% at 14% 14%, rgba(124,58,237,0.34), transparent 72%), '
+                    'radial-gradient(50% 46% at 90% 88%, rgba(91,108,255,0.24), transparent 72%), '
+                    'radial-gradient(70% 60% at 50% 50%, rgba(76,29,149,0.20), transparent 78%), #0E0A16'),
+        'page-dots': 'rgba(196,181,253,0.30)',
+        'card-bg': ('linear-gradient(180deg, #221A38 0%, #1C1531 100%) padding-box, '
+                    'linear-gradient(135deg, rgba(196,181,253,0.85) 0%, rgba(124,58,237,0.55) 38%, '
+                    'rgba(91,108,255,0.45) 68%, rgba(167,139,250,0.80) 100%) border-box'),
+        'card-shadow': ('inset 0 0 46px rgba(124,58,237,0.26), inset 0 0 0 1px rgba(196,181,253,0.10), '
+                        '0 0 12px rgba(124,58,237,0.38), 0 40px 110px rgba(0,0,0,0.6)'),
+        # B · form side
+        'ring': '#DDD6FE', 'title': '#F5F2FA',
+        'input-bg': 'rgba(11,8,20,0.55)', 'input-border': 'rgba(167,139,250,0.34)',
+        'placeholder': '#9D95B2', 'label': '#B4ADC6', 'icon': '#B7AFCB',
+        'google-bg': 'rgba(255,255,255,0.045)', 'google-border': 'rgba(167,139,250,0.34)',
+        'link': '#B9A6FC', 'link-hover': '#DDD6FE',
+        'divider': '#A39CB5', 'legal': '#B4ADC6', 'legal-link': '#C4B5FD', 'hint': '#A39CB5',
+        # C · hero
+        'hero-bg': 'linear-gradient(160deg, #1B1233 0%, #120C22 48%, #0B0816 100%)',
+        'glow-a': 'rgba(139,92,246,0.45)', 'glow-b': 'rgba(124,58,237,0.16)',
+        'hero-dots': 'rgba(196,181,253,0.11)',
+        'hero-fg': '#F5F2FA', 'hero-sub': '#A39CB5', 'hero-faint': '#736B85',
+        'eyebrow': '#A78BFA', 'grad': 'linear-gradient(100deg, #A78BFA, #5B6CFF)',
+        'live-fg': '#FFD3D3', 'live-bg': 'rgba(255,75,75,0.10)', 'live-border': 'rgba(255,75,75,0.32)',
+        'playhead': ('linear-gradient(rgba(245,242,250,0.0), rgba(245,242,250,0.5) 30%, '
+                     'rgba(245,242,250,0.5))'),
+        'chartcard-border': 'rgba(167,139,250,0.24)',
+        'chartcard-bg': 'linear-gradient(180deg, rgba(34,24,58,0.78) 0%, rgba(20,14,36,0.78) 100%)',
+        'chartcard-shadow': 'inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.25)',
+        'chart-muted': '#A39CB5', 'chart-title': '#EDE9FE',
+        'chip-fg': '#C4B5FD', 'chip-bg': 'rgba(124,58,237,0.14)', 'chip-border': 'rgba(167,139,250,0.30)',
+        'grid-v': 'rgba(167,139,250,0.07)', 'grid-h': 'rgba(167,139,250,0.16)',
+        'kpi-bg': 'rgba(167,139,250,0.05)', 'kpi-border': 'rgba(167,139,250,0.18)', 'kpi-shadow': 'none',
+        'kpi-up': '#34D399',
+        'kpi-icon-border': 'rgba(167,139,250,0.35)', 'kpi-icon-bg': 'rgba(124,58,237,0.22)',
+        'tip-strong': '#F5F2FA',
+        **_v2_svg_vars(_V2_SVG),
+    },
+    'light': {
+        # A · page + card
+        'page-bg': ('radial-gradient(54% 48% at 14% 14%, rgba(124,58,237,0.14), transparent 72%), '
+                    'radial-gradient(50% 46% at 90% 88%, rgba(91,108,255,0.10), transparent 72%), '
+                    'radial-gradient(70% 60% at 50% 50%, rgba(167,139,250,0.12), transparent 78%), #F3EFFC'),
+        'page-dots': 'rgba(124,58,237,0.22)',
+        'card-bg': ('linear-gradient(180deg, #FFFFFF 0%, #F6F2FF 100%) padding-box, '
+                    'linear-gradient(135deg, rgba(167,139,250,0.90) 0%, rgba(124,58,237,0.45) 38%, '
+                    'rgba(91,108,255,0.40) 68%, rgba(167,139,250,0.85) 100%) border-box'),
+        'card-shadow': ('inset 0 0 40px rgba(124,58,237,0.08), inset 0 0 0 1px rgba(255,255,255,0.60), '
+                        '0 0 12px rgba(124,58,237,0.18), 0 30px 80px rgba(76,29,149,0.14)'),
+        # B · form side
+        'ring': '#6D28D9', 'title': '#1A1426',
+        'input-bg': '#FFFFFF', 'input-border': '#8C83A6',
+        'placeholder': '#6E6785', 'label': '#5F5873', 'icon': '#7A7096',
+        'google-bg': '#FFFFFF', 'google-border': '#8C83A6',
+        'link': '#6D28D9', 'link-hover': '#5B21B6',
+        'divider': '#6B6480', 'legal': '#5F5873', 'legal-link': '#6D28D9', 'hint': '#6B6480',
+        # C · hero
+        'hero-bg': 'linear-gradient(160deg, #FFFFFF 0%, #F7F3FF 50%, #EFE8FF 100%)',
+        'glow-a': 'rgba(139,92,246,0.22)', 'glow-b': 'rgba(124,58,237,0.07)',
+        'hero-dots': 'rgba(124,58,237,0.10)',
+        'hero-fg': '#1A1426', 'hero-sub': '#4F4866', 'hero-faint': '#5F5873',
+        'eyebrow': '#6D28D9', 'grad': 'linear-gradient(100deg, #6D28D9, #4338CA)',
+        'live-fg': '#B91C1C', 'live-bg': 'rgba(220,38,38,0.06)', 'live-border': 'rgba(220,38,38,0.35)',
+        'playhead': ('linear-gradient(rgba(109,40,217,0.0), rgba(109,40,217,0.45) 30%, '
+                     'rgba(109,40,217,0.45))'),
+        'chartcard-border': 'rgba(124,58,237,0.18)',
+        'chartcard-bg': 'linear-gradient(180deg, #FFFFFF 0%, #FBF9FF 100%)',
+        'chartcard-shadow': 'inset 0 1px 0 #FFFFFF, 0 10px 28px rgba(76,29,149,0.08)',
+        'chart-muted': '#5F5873', 'chart-title': '#1A1426',
+        'chip-fg': '#5B21B6', 'chip-bg': 'rgba(124,58,237,0.08)', 'chip-border': 'rgba(124,58,237,0.28)',
+        'grid-v': 'rgba(91,84,112,0.08)', 'grid-h': 'rgba(91,84,112,0.18)',
+        'kpi-bg': '#FFFFFF', 'kpi-border': 'rgba(124,58,237,0.16)',
+        'kpi-shadow': '0 6px 18px rgba(76,29,149,0.06)',
+        'kpi-up': '#047857',
+        'kpi-icon-border': 'rgba(124,58,237,0.28)', 'kpi-icon-bg': 'rgba(124,58,237,0.10)',
+        'tip-strong': '#1A1426',
+        **_v2_svg_vars(_V2_SVG_LIGHT),
+    },
+}
+
+
+def _v2_css(mode):
+    """The v2 block for one theme: its values, then the shared rules."""
+    values = _V2_THEME['dark' if mode == 'dark' else 'light']
+    decl = ''.join(f'\n            --sr2-{name}: {value};' for name, value in values.items())
+    return (f'\n\n        /* LOGIN_UI_V2 · {mode} theme values */\n        {_V2_SCOPE} {{{decl}\n        }}'
+            + _V2_RULES)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Styles
@@ -47,6 +716,8 @@ def _inject_login_styles(mode='light'):
     # reads landscape (wide + short) like option_a_split_showcase.html.
     form_pad = ('clamp(14px, 1.8vh, 26px) clamp(38px, 3.6vw, 52px)' if is_dark
                 else 'clamp(12px, 1.6vh, 22px) clamp(32px, 3.2vw, 46px)')
+    # LOGIN_UI_V2: both themes; nothing is emitted when the switch is off.
+    v2_css = _v2_css(mode) if _ui_v2_enabled() else ''
 
     st.markdown(f"""
     <style>
@@ -633,7 +1304,7 @@ def _inject_login_styles(mode='light'):
                 flex: 1 1 0% !important; height: auto !important;
             }}
             .stApp:has(.sr-scene) .sr-scene {{ justify-content: flex-start; }}
-        }}
+        }}{v2_css}
     </style>
     """, unsafe_allow_html=True)
 
@@ -691,15 +1362,24 @@ def _inject_entrance_styles(play=True):
 
 def _scene_html():
     """The always-dark left showcase — one single markdown block."""
+    # Everything below is constant for the process (not theme- or session-dependent)
+    # so the hero never remounts. With the switch off every v2 piece is '' and the
+    # string is byte-identical to the pre-v2 page.
+    v2 = _ui_v2_enabled()
+    scene_open = '<div class="sr-scene sr-v2">' if v2 else '<div class="sr-scene">'
+    card_open = _V2_CHART_CARD_OPEN if v2 else ''
+    card_close = '</div>' if v2 else ''
+    best_window = _V2_BEST_WINDOW if v2 else 'Friday, 6 PM.'
     return (
-        '<div class="sr-scene">'
+        scene_open +
         '<div class="sr-top">'
         '<span class="sr-eyebrow">YouTube Analytics</span>'
         '<span class="sr-live"><span class="sr-live-dot"></span>LIVE · CHANNEL PULSE</span>'
         '</div>'
         '<h1 class="sr-h1">Know what your <span class="sr-grad">audience</span> actually watches.</h1>'
         '<p class="sr-sub">Retention, engagement and revenue for every video'
-        ' — decoded into decisions, in one dashboard.</p>'
+        ' — decoded into decisions, in one dashboard.</p>' +
+        card_open +
         '<div class="sr-chartwrap">'
         '<svg class="sr-chart" viewBox="0 0 560 210" preserveAspectRatio="none" aria-hidden="true">'
         '<defs>'
@@ -737,7 +1417,8 @@ def _scene_html():
         '</div>'
         '<div class="sr-times"><span class="sr-cur" id="sr-tnow">0:00</span><span>3:00</span></div>'
         '</div>'
-        '</div>'
+        '</div>' +
+        card_close +
         '<div class="sr-kpis">'
         '<div class="sr-kpi">'
         '<div class="sr-kpi-val"><span class="sr-num" data-target="2400000" data-kind="views" data-delay="0">0.0M</span></div>'
@@ -755,7 +1436,7 @@ def _scene_html():
         '<div class="sr-captions">'
         '<span>Retention peaks at the 0:42 hook — repeat it earlier.</span>'
         '<span>Shorts bring 3.1× more new subscribers than long-form.</span>'
-        '<span>Best upload window for this channel: Friday, 6 PM.</span>'
+        '<span>Best upload window for this channel: ' + best_window + '</span>'
         '</div>'
         '</div>'
     )
